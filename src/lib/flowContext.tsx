@@ -51,6 +51,26 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case 'LOAD_SCAN': {
       const totalTargets = Object.values(action.payload.sectors).reduce((a, s) => a + s.targets.length, 0);
       const totalEst = Object.values(action.payload.sectors).reduce((a, s) => a + s.timeEstimate, 0);
+      // Auto-archive previous scenario if one exists
+      let history = state.scenarioHistory;
+      if (state.scanDone && state.sectorOrder.length > 0) {
+        const totalT = Object.values(state.sectors).reduce((a, s) => a + s.targets.length, 0);
+        const record: ScenarioRecord = {
+          date: new Date().toISOString(),
+          operationName: state.operationName || 'UNKNOWN OP',
+          sectors: state.sectorOrder.length,
+          sectorsCleared: state.sectorOrder.filter(k => {
+            const targets = state.sectors[k]?.targets ?? [];
+            return targets.length > 0 && targets.every(t => state.completedTargets.includes(t.id));
+          }).length,
+          targets: totalT,
+          targetsCompleted: state.completedTargets.length,
+          trash: state.trash,
+          loot: state.loot,
+          username: state.username || 'OPERATOR',
+        };
+        history = [...history, record];
+      }
       return {
         ...state,
         sectors: action.payload.sectors,
@@ -63,12 +83,32 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         sectorStarted: {},
         directives: [],
         scenarios: state.scenarios + 1,
+        scenarioHistory: history,
         sysLogs: [
           `${action.payload.sectorOrder.length} SECTORS GENERATED. ${totalTargets} TARGETS ARMED.`,
           `EST. TOTAL: ${totalEst} MIN.`,
           `${action.payload.operationName} INITIATED.`,
         ],
       };
+    }
+    case 'ARCHIVE_SCENARIO': {
+      if (!state.scanDone || state.sectorOrder.length === 0) return state;
+      const totalT = Object.values(state.sectors).reduce((a, s) => a + s.targets.length, 0);
+      const record: ScenarioRecord = {
+        date: new Date().toISOString(),
+        operationName: state.operationName || 'UNKNOWN OP',
+        sectors: state.sectorOrder.length,
+        sectorsCleared: state.sectorOrder.filter(k => {
+          const targets = state.sectors[k]?.targets ?? [];
+          return targets.length > 0 && targets.every(t => state.completedTargets.includes(t.id));
+        }).length,
+        targets: totalT,
+        targetsCompleted: state.completedTargets.length,
+        trash: state.trash,
+        loot: state.loot,
+        username: state.username || 'OPERATOR',
+      };
+      return { ...state, scenarioHistory: [...state.scenarioHistory, record] };
     }
     case 'COMPLETE_TARGET': {
       const { targetId, action: act, trash, loot } = action.payload;

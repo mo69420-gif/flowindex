@@ -1,42 +1,56 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFlow } from '@/lib/flowContext';
-import { MOCK_SECTORS, MOCK_SECTOR_ORDER, MOCK_OPERATION_NAME, LOADING_LINES } from '@/lib/mockData';
+import { LOADING_LINES } from '@/lib/mockData';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
+import { supabase } from '@/integrations/supabase/client';
+import type { Directive } from '@/lib/types';
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function Scan() {
-  const { dispatch } = useFlow();
+  const { state, dispatch } = useFlow();
   const navigate = useNavigate();
-  const [step, setStep] = useState<'panoramic' | 'directives' | 'loading'>('panoramic');
+  const [step, setStep] = useState<'panoramic' | 'directives' | 'loading' | 'error'>('panoramic');
   const [panoFile, setPanoFile] = useState<File | null>(null);
   const [directiveFiles, setDirectiveFiles] = useState<Record<string, File>>({});
   const [loadingPct, setLoadingPct] = useState(0);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [loadingLogs, setLoadingLogs] = useState<string[]>([]);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [aiDirectives, setAiDirectives] = useState<Directive[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
-
-  // Mock directives (in real version these come from AI panoramic analysis)
-  const mockDirectives = [
-    { id: 'D1', label: 'DIRECTIVE 1 — KITCHEN ZONE', instruction: 'Stand at the entrance. Shoot the counter and sink area. Get every surface in frame. I need to see what you\'ve been ignoring.' },
-    { id: 'D2', label: 'DIRECTIVE 2 — DESK SECTOR', instruction: 'Face the desk straight on. Capture the full surface, cable situation behind, and that chair you\'ve been using as a closet.' },
-    { id: 'D3', label: 'DIRECTIVE 3 — FLOOR ASSESSMENT', instruction: 'Point the camera down. Sweep the floor from wall to wall. I need to see every obstacle, textile, and abandoned item.' },
-  ];
+  const abortRef = useRef(false);
 
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const startLoading = () => {
-    setStep('loading');
+  // Use AI directives if available, otherwise fall back to state directives
+  const directives = aiDirectives.length > 0 ? aiDirectives : state.directives;
+
+  const startLoadingAnimation = () => {
     setLoadingPct(0);
     setLoadingLogs([]);
     let lineIdx = 0;
     let pct = 0;
+    abortRef.current = false;
 
     timerRef.current = setInterval(() => {
-      pct += Math.floor(Math.random() * 8) + 3;
-      if (pct > 100) pct = 100;
+      if (abortRef.current) {
+        clearInterval(timerRef.current);
+        return;
+      }
+      pct += Math.floor(Math.random() * 5) + 2;
+      if (pct > 90) pct = 90; // cap at 90 until real response
       setLoadingPct(pct);
 
       if (lineIdx < LOADING_LINES.length) {
@@ -44,24 +58,121 @@ export default function Scan() {
         setLoadingLogs(prev => [...prev.slice(-4), LOADING_LINES[lineIdx]]);
         lineIdx++;
       }
-
-      if (pct >= 100) {
-        clearInterval(timerRef.current);
-        setTimeout(() => {
-          dispatch({
-            type: 'LOAD_SCAN',
-            payload: {
-              sectors: MOCK_SECTORS,
-              sectorOrder: MOCK_SECTOR_ORDER,
-              operationName: MOCK_OPERATION_NAME,
-            },
-          });
-          navigate('/briefing');
-        }, 800);
-      }
-    }, 700);
+    }, 800);
   };
 
+  const stopLoadingAnimation = () => {
+    abortRef.current = true;
+    if (timerRef.current) clearInterval(timerRef.current);
+  };
+
+  // Step 1: Analyze panoramic
+  const analyzePanoramic = async () => {
+    if (!panoFile) return;
+    setStep('loading');
+    startLoadingAnimation();
+
+    try {
+      const dataUrl = await fileToDataUrl(panoFile);
+
+      const { data, error } = await supabase.functions.invoke('analyze-room', {
+        body: {
+          mode: 'panoramic',
+          images: [{ label: 'panoramic', dataUrl }],
+        },
+      });
+
+      stopLoadingAnimation();
+
+      if (error) throw new Error(error.message || 'Panoramic analysis failed');
+      if (data?.error) throw new Error(data.error);
+
+      const dirs: Directive[] = (data.directives || []).map((d: any, i: number) => ({
+        id: d.id || `D${i + 1}`,
+        label: d.label || `DIRECTIVE ${i + 1}`,
+        instruction: d.instruction || 'Take a photo of this area.',
+      }));
+
+      if (dirs.length === 0) throw new Error('AI returned no directives. Try a clearer photo.');
+
+      setAiDirectives(dirs);
+      dispatch({ type: 'SET_DIRECTIVES', payload: dirs });
+      setLoadingPct(100);
+      setTimeout(() => setStep('directives'), 500);
+    } catch (e: any) {
+      stopLoadingAnimation();
+      setErrorMsg(e.message || 'Panoramic analysis failed');
+      setStep('error');
+    }
+  };
+
+  // Step 2: Full scan
+  const runFullScan = async () => {
+    setStep('loading');
+    startLoadingAnimation();
+
+    try {
+      const images: { label: string; dataUrl: string }[] = [];
+
+      for (const d of directives) {
+        const file = directiveFiles[d.id];
+        if (file) {
+          const dataUrl = await fileToDataUrl(file);
+          images.push({ label: d.label, dataUrl });
+        }
+      }
+
+      if (images.length === 0) throw new Error('No photos captured. Go back and take photos.');
+
+      const { data, error } = await supabase.functions.invoke('analyze-room', {
+        body: { mode: 'full_scan', images },
+      });
+
+      stopLoadingAnimation();
+
+      if (error) throw new Error(error.message || 'Scan failed');
+      if (data?.error) throw new Error(data.error);
+
+      setLoadingPct(100);
+      setLoadingMsg('SCAN COMPLETE. SECTORS ARMED.');
+
+      setTimeout(() => {
+        dispatch({
+          type: 'LOAD_SCAN',
+          payload: {
+            sectors: data.sectors,
+            sectorOrder: data.sectorOrder,
+            operationName: data.operationName,
+          },
+        });
+        navigate('/briefing');
+      }, 800);
+    } catch (e: any) {
+      stopLoadingAnimation();
+      setErrorMsg(e.message || 'Full scan failed');
+      setStep('error');
+    }
+  };
+
+  // Error screen
+  if (step === 'error') {
+    return (
+      <TerminalLayout title="ERROR" syslog="Something went wrong. Details above.">
+        <div className="border border-destructive text-destructive p-3.5 mb-3 text-xs whitespace-pre-wrap leading-relaxed">
+          <div className="text-[13px] tracking-widest mb-2">[ERROR] SCAN FAILED</div>
+          {errorMsg}
+        </div>
+        <TerminalButton variant="scan" onClick={() => { setErrorMsg(''); setStep('panoramic'); }}>
+          {'>'} RETRY SCAN
+        </TerminalButton>
+        <TerminalButton variant="back" onClick={() => navigate('/menu')}>
+          {'<'} BACK TO MENU
+        </TerminalButton>
+      </TerminalLayout>
+    );
+  }
+
+  // Loading screen
   if (step === 'loading') {
     return (
       <TerminalLayout title="SCANNING" syslog="AI is analyzing. Do not close this screen.">
@@ -83,6 +194,7 @@ export default function Scan() {
     );
   }
 
+  // Step 2: Directives
   if (step === 'directives') {
     return (
       <TerminalLayout title="SCAN_STEP_2" syslog="Follow each directive. Shoot exactly what AI asked for.">
@@ -95,7 +207,7 @@ export default function Scan() {
           </div>
         </div>
 
-        {mockDirectives.map((d, i) => (
+        {directives.map((d) => (
           <div
             key={d.id}
             className={`border p-3.5 mb-3 bg-muted ${directiveFiles[d.id] ? 'border-primary' : 'border-border border-dashed'}`}
@@ -124,7 +236,7 @@ export default function Scan() {
 
         <TerminalButton
           variant="scan"
-          onClick={startLoading}
+          onClick={runFullScan}
         >
           {'>'} RUN FULL SCAN — ANALYZE WITH AI
         </TerminalButton>
@@ -184,7 +296,7 @@ export default function Scan() {
       <TerminalButton
         variant="scan"
         disabled={!panoFile}
-        onClick={() => setStep('directives')}
+        onClick={analyzePanoramic}
       >
         {'>'} ANALYZE — GET AI DIRECTIVES
       </TerminalButton>

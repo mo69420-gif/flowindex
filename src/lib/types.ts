@@ -33,6 +33,18 @@ export interface Directive {
   instruction: string;
 }
 
+export interface ScenarioRecord {
+  date: string;
+  operationName: string;
+  sectors: number;
+  sectorsCleared: number;
+  targets: number;
+  targetsCompleted: number;
+  trash: number;
+  loot: number;
+  username: string;
+}
+
 export interface FlowState {
   username: string | null;
   allUsers: string[];
@@ -50,6 +62,7 @@ export interface FlowState {
   operationName: string;
   directives: Directive[];
   sectorStarted: Record<string, string>;
+  scenarioHistory: ScenarioRecord[];
 }
 
 export type FlowAction =
@@ -61,4 +74,5 @@ export type FlowAction =
   | { type: 'COMPLETE_TARGET'; payload: { targetId: string; action: string; trash: number; loot: number } }
   | { type: 'CONFIRM_SECTOR'; payload: string }
   | { type: 'START_SECTOR'; payload: string }
+  | { type: 'ARCHIVE_SCENARIO' }
   | { type: 'RESET' };

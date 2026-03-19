@@ -4,6 +4,7 @@ import { FlowProvider } from "@/lib/flowContext";
 import Boot from "./pages/Boot";
 import MainMenu from "./pages/MainMenu";
 import Scan from "./pages/Scan";
+import Scenarios from "./pages/Scenarios";
 import MissionBriefing from "./pages/MissionBriefing";
 import SectorMap from "./pages/SectorMap";
 import SectorDetail from "./pages/SectorDetail";
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/new-user" element={<Boot />} />
           <Route path="/menu" element={<MainMenu />} />
           <Route path="/scan" element={<Scan />} />
+          <Route path="/scenarios" element={<Scenarios />} />
           <Route path="/briefing" element={<MissionBriefing />} />
           <Route path="/sectors" element={<SectorMap />} />
           <Route path="/sector/:key" element={<SectorDetail />} />

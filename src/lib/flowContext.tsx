@@ -35,6 +35,7 @@ const initialState: FlowState = {
   operationName: "",
   directives: [],
   sectorStarted: {},
+  scenarioHistory: [],
 };
 
 function flowReducer(state: FlowState, action: FlowAction): FlowState {

@@ -22,6 +22,7 @@ const App = () => (
           <Route path="/new-user" element={<Boot />} />
           <Route path="/menu" element={<MainMenu />} />
           <Route path="/scan" element={<Scan />} />
+          <Route path="/scenarios" element={<Scenarios />} />
           <Route path="/briefing" element={<MissionBriefing />} />
           <Route path="/sectors" element={<SectorMap />} />
           <Route path="/sector/:key" element={<SectorDetail />} />

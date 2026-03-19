@@ -54,7 +54,7 @@ export default function MainMenu() {
           <TerminalButton
             variant={state.scenarios === 0 ? 'locked' : undefined}
             disabled={state.scenarios === 0}
-            onClick={() => {/* scenarios history - future feature */}}
+            onClick={() => navigate('/scenarios')}
           >
             {'>'} SCENARIOS
           </TerminalButton>

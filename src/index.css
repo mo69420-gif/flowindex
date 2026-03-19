@@ -2,95 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 0 0% 3%;
+    --foreground: 0 0% 83%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 83%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 83%;
+    --primary: 110 100% 54%;
+    --primary-foreground: 0 0% 3%;
+    --secondary: 220 100% 64%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 6%;
+    --muted-foreground: 0 0% 33%;
+    --accent: 51 100% 50%;
+    --accent-foreground: 0 0% 3%;
+    --destructive: 16 100% 50%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 0 0% 13%;
+    --input: 0 0% 13%;
+    --ring: 110 100% 54%;
+    --radius: 0px;
+    --terminal-orange: 33 100% 50%;
+    --terminal-dim: 0 0% 33%;
+    --terminal-panel: 0 0% 6%;
   }
 }
 
@@ -98,8 +34,107 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
   }
+}
+
+/* CRT scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Terminal typography */
+.font-display {
+  font-family: 'Share Tech Mono', 'Courier New', monospace;
+}
+.font-body {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* ASCII bar components */
+.bar-filled { color: hsl(var(--primary)); }
+.bar-empty { color: hsl(var(--border)); }
+.bar-danger { color: hsl(var(--destructive)); }
+
+/* Typewriter animation */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes blink-caret {
+  50% { border-color: transparent; }
+}
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid hsl(var(--primary));
+  animation: typewriter 1.5s steps(40) 1, blink-caret 0.75s step-end infinite;
+}
+
+/* Scan loading stepped animation */
+@keyframes scan-fill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+.scan-bar-fill {
+  animation: scan-fill 12s steps(20) forwards;
+}
+
+/* Glitch flicker */
+@keyframes glitch {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+  51% { opacity: 1; }
+  75% { opacity: 0.9; }
+}
+.glitch-flicker {
+  animation: glitch 0.15s ease-in-out;
+}
+
+/* Fade in for scan log lines */
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in {
+  animation: fadein 0.4s forwards;
+}
+
+/* Impact bar colors */
+.impact-high { color: hsl(var(--destructive)); }
+.impact-med { color: hsl(var(--terminal-orange)); }
+.impact-low { color: hsl(var(--terminal-dim)); }
+
+/* Tier badge colors */
+.tier-1 { color: hsl(var(--destructive)); border-color: hsl(var(--destructive)); }
+.tier-2 { color: hsl(var(--terminal-orange)); border-color: hsl(var(--terminal-orange)); }
+.tier-3 { color: hsl(var(--terminal-dim)); border-color: hsl(var(--terminal-dim)); }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); }
+
+/* File input styling */
+input[type="file"] {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0;
+  cursor: pointer;
 }

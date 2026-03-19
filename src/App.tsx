@@ -1,26 +1,34 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { FlowProvider } from "@/lib/flowContext";
+import Boot from "./pages/Boot";
+import MainMenu from "./pages/MainMenu";
+import Scan from "./pages/Scan";
+import MissionBriefing from "./pages/MissionBriefing";
+import SectorMap from "./pages/SectorMap";
+import SectorDetail from "./pages/SectorDetail";
+import SectorTargets from "./pages/SectorTargets";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+    <FlowProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route path="/" element={<Boot />} />
+          <Route path="/new-user" element={<Boot />} />
+          <Route path="/menu" element={<MainMenu />} />
+          <Route path="/scan" element={<Scan />} />
+          <Route path="/briefing" element={<MissionBriefing />} />
+          <Route path="/sectors" element={<SectorMap />} />
+          <Route path="/sector/:key" element={<SectorDetail />} />
+          <Route path="/sector/:key/targets" element={<SectorTargets />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
-    </TooltipProvider>
+    </FlowProvider>
   </QueryClientProvider>
 );
 

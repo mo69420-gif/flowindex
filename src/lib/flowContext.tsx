@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import type { FlowState, FlowAction } from './types';
+import type { FlowState, FlowAction, ScenarioRecord } from './types';
 
 const MOOD_LADDER: [number, string][] = [
   [0, "HOSTILE BUT HELPFUL"],

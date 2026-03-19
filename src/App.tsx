@@ -4,6 +4,7 @@ import { FlowProvider } from "@/lib/flowContext";
 import Boot from "./pages/Boot";
 import MainMenu from "./pages/MainMenu";
 import Scan from "./pages/Scan";
+import Scenarios from "./pages/Scenarios";
 import MissionBriefing from "./pages/MissionBriefing";
 import SectorMap from "./pages/SectorMap";
 import SectorDetail from "./pages/SectorDetail";

@@ -219,11 +219,10 @@ export default function Scan() {
                 ? 'border-primary text-primary'
                 : 'border-border text-muted-foreground'
             }`}>
-              {'>'} {directiveFiles[d.id] ? `✓ ${directiveFiles[d.id].name}` : 'TAP TO TAKE PHOTO'}
+              {'>'} {directiveFiles[d.id] ? `✓ ${directiveFiles[d.id].name}` : 'UPLOAD OR TAKE PHOTO'}
               <input
                 type="file"
                 accept="image/*"
-                capture="environment"
                 className="absolute inset-0 opacity-0 cursor-pointer"
                 onChange={e => {
                   const file = e.target.files?.[0];

@@ -74,4 +74,5 @@ export type FlowAction =
   | { type: 'COMPLETE_TARGET'; payload: { targetId: string; action: string; trash: number; loot: number } }
   | { type: 'CONFIRM_SECTOR'; payload: string }
   | { type: 'START_SECTOR'; payload: string }
+  | { type: 'ARCHIVE_SCENARIO' }
   | { type: 'RESET' };

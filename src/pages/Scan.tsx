@@ -34,7 +34,6 @@ export default function Scan() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  // Use AI directives if available, otherwise fall back to state directives
   const directives = aiDirectives.length > 0 ? aiDirectives : state.directives;
 
   const startLoadingAnimation = () => {
@@ -50,7 +49,7 @@ export default function Scan() {
         return;
       }
       pct += Math.floor(Math.random() * 5) + 2;
-      if (pct > 90) pct = 90; // cap at 90 until real response
+      if (pct > 90) pct = 90;
       setLoadingPct(pct);
 
       if (lineIdx < LOADING_LINES.length) {
@@ -66,7 +65,6 @@ export default function Scan() {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  // Step 1: Analyze panoramic
   const analyzePanoramic = async () => {
     if (!panoFile) return;
     setStep('loading');
@@ -74,16 +72,11 @@ export default function Scan() {
 
     try {
       const dataUrl = await fileToDataUrl(panoFile);
-
       const { data, error } = await supabase.functions.invoke('analyze-room', {
-        body: {
-          mode: 'panoramic',
-          images: [{ label: 'panoramic', dataUrl }],
-        },
+        body: { mode: 'panoramic', images: [{ label: 'panoramic', dataUrl }] },
       });
 
       stopLoadingAnimation();
-
       if (error) throw new Error(error.message || 'Panoramic analysis failed');
       if (data?.error) throw new Error(data.error);
 
@@ -106,14 +99,12 @@ export default function Scan() {
     }
   };
 
-  // Step 2: Full scan
   const runFullScan = async () => {
     setStep('loading');
     startLoadingAnimation();
 
     try {
       const images: { label: string; dataUrl: string }[] = [];
-
       for (const d of directives) {
         const file = directiveFiles[d.id];
         if (file) {
@@ -121,7 +112,6 @@ export default function Scan() {
           images.push({ label: d.label, dataUrl });
         }
       }
-
       if (images.length === 0) throw new Error('No photos captured. Go back and take photos.');
 
       const { data, error } = await supabase.functions.invoke('analyze-room', {
@@ -129,7 +119,6 @@ export default function Scan() {
       });
 
       stopLoadingAnimation();
-
       if (error) throw new Error(error.message || 'Scan failed');
       if (data?.error) throw new Error(data.error);
 
@@ -202,8 +191,11 @@ export default function Scan() {
           <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
             SCAN // STEP 2 OF 2 — AI DIRECTIVES
           </div>
-          <div className="text-muted-foreground text-xs mb-4 font-body leading-relaxed">
+          <div className="text-muted-foreground text-xs mb-2 font-body leading-relaxed">
             AI analyzed your space and needs these specific shots.{'\n'}Follow each directive exactly.
+          </div>
+          <div className="text-accent text-[10px] tracking-widest mb-4">
+            TIP: USE YOUR PHONE CAMERA — REGULAR PHOTOS WORK FINE HERE
           </div>
         </div>
 
@@ -233,10 +225,7 @@ export default function Scan() {
           </div>
         ))}
 
-        <TerminalButton
-          variant="scan"
-          onClick={runFullScan}
-        >
+        <TerminalButton variant="scan" onClick={runFullScan}>
           {'>'} RUN FULL SCAN — ANALYZE WITH AI
         </TerminalButton>
 
@@ -255,7 +244,13 @@ export default function Scan() {
           SCAN // STEP 1 OF 2 — PANORAMIC
         </div>
         <div className="text-muted-foreground text-xs mb-3 font-body leading-relaxed whitespace-pre-wrap">
-          Take ONE wide panoramic shot of the entire space.{'\n'}Sweep slowly left to right. Get everything in frame.{'\n'}AI analyzes it and tells you exactly what follow-up shots it needs.
+          Take a PANORAMIC photo of the space with your phone camera.{'\n'}Open your phone's camera app → select PANO mode → sweep slowly left to right.{'\n'}Then upload it here.
+        </div>
+        <div className="text-accent text-[10px] tracking-widest mb-1">
+          ⚠ PANORAMIC PHOTOS PRODUCE SIGNIFICANTLY BETTER RESULTS
+        </div>
+        <div className="text-muted-foreground text-[10px] mb-2 font-body">
+          Regular wide-angle photos work too, but panoramic captures more of the space for AI to analyze.
         </div>
       </div>
 
@@ -271,13 +266,18 @@ export default function Scan() {
         <div className="px-3.5 pb-3.5">
           {!panoFile && (
             <div className="text-muted-foreground text-xs mb-3 font-body">
-              Stand in the center. Sweep wide. Get everything.
+              Take pano with your phone → upload here. Get everything in frame.
+            </div>
+          )}
+          {panoFile && (
+            <div className="text-muted-foreground text-[10px] mb-2 font-body">
+              ✓ File loaded: {panoFile.name}
             </div>
           )}
           <label className={`block w-full border text-xs px-3 py-3 text-center cursor-pointer relative tracking-wide ${
             panoFile ? 'border-primary text-primary' : 'border-border text-muted-foreground'
           }`}>
-           {'>'} {panoFile ? `✓ ${panoFile.name}` : 'UPLOAD PANORAMIC PHOTO'}
+           {'>'} {panoFile ? 'CHANGE PHOTO' : 'UPLOAD PANORAMIC PHOTO'}
             <input
               type="file"
               accept="image/*"
@@ -296,7 +296,7 @@ export default function Scan() {
         disabled={!panoFile}
         onClick={analyzePanoramic}
       >
-        {'>'} ANALYZE — GET AI DIRECTIVES
+        {'>'} ANALYZE SPACE — GET AI DIRECTIVES
       </TerminalButton>
 
       <TerminalButton variant="back" onClick={() => navigate('/menu')}>

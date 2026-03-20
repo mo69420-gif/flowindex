@@ -37,8 +37,8 @@ export const MOCK_SECTORS: Record<string, Sector> = {
     flowImpact: 4,
     psychImpact: 5,
     ergonomicRisk: 4,
-    whyItMatters: "Clothing piles create a visual weight that makes the entire room feel smaller. Your brain processes every visible item — that's 47 micro-decisions before you even get dressed. The ergonomic risk of stepping over fabric obstacles is non-trivial.",
-    finalAnalysis: "This zone is a psychological anchor dragging down your entire morning routine. Every minute spent here saves three minutes of daily frustration. Sort it or drown in it.",
+    whyItMatters: "Clothing piles create a visual weight that makes the entire room feel smaller. Your brain processes every visible item — that's 47 micro-decisions before you even get dressed.",
+    finalAnalysis: "This zone is a psychological anchor dragging down your entire morning routine. Sort it or drown in it.",
     inventory: [
       { number: "001", label: "Jeans (questionable cleanliness)", category: "TEXTILES" },
       { number: "002", label: "Hoodie pile (3 deep)", category: "TEXTILES" },
@@ -48,7 +48,7 @@ export const MOCK_SECTORS: Record<string, Sector> = {
       { number: "006", label: "Dress shirt (wrinkled beyond recognition)", category: "TEXTILES" },
     ],
     targets: [
-      { id: "B1", label: "The Chair Wardrobe", tier: 1, why: "That chair hasn't been sat in since you moved in. It's furniture cosplaying as a laundry basket.", trash: 5, loot: 8 },
+      { id: "B1", label: "The Chair Wardrobe", tier: 1, why: "That chair hasn't been sat in since you moved in.", trash: 5, loot: 8 },
       { id: "B2", label: "Floor textile layer", tier: 1, why: "Tripping hazard and dignity hazard simultaneously.", trash: 10, loot: 5 },
       { id: "B3", label: "Orphaned socks", tier: 3, why: "Accept the loss. Their partners aren't coming back.", trash: 8, loot: 0 },
     ],
@@ -61,8 +61,8 @@ export const MOCK_SECTORS: Record<string, Sector> = {
     flowImpact: 3,
     psychImpact: 3,
     ergonomicRisk: 5,
-    whyItMatters: "Cable chaos behind desks is an ergonomic nightmare — every time you crawl back there you risk strain. The dust accumulation is actively degrading your air quality. The visual chaos bleeds into your peripheral vision during work.",
-    finalAnalysis: "This is a fire hazard cosplaying as a workstation. Route, bundle, or eliminate. Your future self will thank you when something actually needs unplugging.",
+    whyItMatters: "Cable chaos is an ergonomic nightmare. The dust accumulation is actively degrading your air quality.",
+    finalAnalysis: "This is a fire hazard cosplaying as a workstation. Route, bundle, or eliminate.",
     inventory: [
       { number: "001", label: "Power strip (overloaded)", category: "ELECTRONICS" },
       { number: "002", label: "HDMI cable (to nothing)", category: "ELECTRONICS" },
@@ -73,7 +73,7 @@ export const MOCK_SECTORS: Record<string, Sector> = {
     ],
     targets: [
       { id: "C1", label: "Dead USB hub", tier: 2, why: "75% failure rate. That's not a hub, that's a monument to denial.", trash: 10, loot: 2 },
-      { id: "C2", label: "Cable nest behind desk", tier: 1, why: "Fire marshal would have opinions about this configuration.", trash: 5, loot: 3 },
+      { id: "C2", label: "Cable nest behind desk", tier: 1, why: "Fire marshal would have opinions about this.", trash: 5, loot: 3 },
       { id: "C3", label: "Frayed phone charger", tier: 1, why: "Electrocution is not a productivity hack.", trash: 12, loot: 0 },
     ],
   },
@@ -85,8 +85,8 @@ export const MOCK_SECTORS: Record<string, Sector> = {
     flowImpact: 4,
     psychImpact: 4,
     ergonomicRisk: 2,
-    whyItMatters: "Paper clutter is pure visual cortisol. Each visible document represents an unfinished task your brain tracks unconsciously. Studies show desk clutter reduces focus by up to 40%. Your workspace is literally making you less effective.",
-    finalAnalysis: "This desk is an archaeological dig of abandoned intentions. Sort it in one pass — keep, scan, or kill. Every paper you eliminate is a micro-weight off your cognitive load.",
+    whyItMatters: "Paper clutter is pure visual cortisol. Each visible document represents an unfinished task your brain tracks unconsciously.",
+    finalAnalysis: "This desk is an archaeological dig of abandoned intentions. Sort it in one pass.",
     inventory: [
       { number: "001", label: "Tax documents (2022)", category: "MISC" },
       { number: "002", label: "Sticky notes (illegible)", category: "MISC" },
@@ -96,8 +96,8 @@ export const MOCK_SECTORS: Record<string, Sector> = {
     ],
     targets: [
       { id: "D1", label: "Receipt archaeology layer", tier: 2, why: "If you haven't filed it in 6 months, it's not getting filed.", trash: 15, loot: 0 },
-      { id: "D2", label: "Sticky note graveyard", tier: 3, why: "None of these reminders are still relevant. Not one.", trash: 8, loot: 0 },
-      { id: "D3", label: "Mystery business cards", tier: 3, why: "You don't remember these people. They don't remember you. Mutual peace.", trash: 5, loot: 0 },
+      { id: "D2", label: "Sticky note graveyard", tier: 3, why: "None of these reminders are still relevant.", trash: 8, loot: 0 },
+      { id: "D3", label: "Mystery business cards", tier: 3, why: "You don't remember these people. They don't remember you.", trash: 5, loot: 0 },
     ],
   },
 };
@@ -105,21 +105,23 @@ export const MOCK_SECTORS: Record<string, Sector> = {
 export const MOCK_SECTOR_ORDER = ["ALPHA", "BRAVO", "CHARLIE", "DELTA"];
 
 export const LOADING_LINES = [
-  "Assessing the damage...",
-  "Questioning your life choices...",
-  "Counting every single item. Yes, all of them...",
-  "Identifying zones of maximum chaos...",
-  "Cross-referencing all angles...",
-  "Calculating how long this took to get this bad...",
-  "Mapping ergonomic hazards and moral failures...",
-  "Running feng shui violation analysis...",
-  "Assigning psychological impact scores...",
-  "Detecting items that spark zero joy...",
-  "Building full inventory manifest...",
-  "Generating hostile sector designations...",
-  "Arming target manifest...",
-  "Almost done. Not impressed so far.",
-  "Finalizing operation parameters...",
+  "Assessing the wreckage...",
+  "Questioning every decision that led to this moment...",
+  "Counting items you forgot you owned...",
+  "Identifying zones of maximum domestic failure...",
+  "Cross-referencing all evidence of neglect...",
+  "Calculating how many Netflix binges caused this...",
+  "Mapping trip hazards and moral compromises...",
+  "Running feng shui violation analysis... results: catastrophic...",
+  "Measuring psychological damage per square foot...",
+  "Detecting items that haven't been touched since the last president...",
+  "Cataloguing your commitment issues (the stuff kind)...",
+  "Generating absurdly hostile sector designations...",
+  "Assigning blame to inanimate objects...",
+  "Judging your organizational skills. Score: concerning...",
+  "Calculating the dust-to-hope ratio...",
+  "Almost done. The AI needed a moment to process what it saw...",
+  "Finalizing your intervention parameters...",
 ];
 
 export const BOOT_MESSAGES = [
@@ -130,4 +132,7 @@ export const BOOT_MESSAGES = [
   "Enter your callsign. Something heroic. You're going to need it.",
   "State your identity before the mess files a missing person report.",
   "Name. Now. The entropy isn't going to organize itself.",
+  "The clutter sent a distress signal. Apparently you're the response team.",
+  "Log in so we can begin pretending this is salvageable.",
+  "Your belongings have filed a class action lawsuit. Name for the record?",
 ];

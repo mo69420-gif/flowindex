@@ -52,7 +52,7 @@ export default function StatusMatrix() {
         <div className="flex items-center gap-2 mb-1">
           <span className="w-[90px] text-muted-foreground">TRASH</span>
           <BarDisplay value={state.trash} />
-          <span className="text-foreground text-[11px]">{state.trash} KILLED</span>
+          <span className="text-foreground text-[11px]">{state.trash} PURGED</span>
         </div>
 
         <div className="border-t border-border my-2" />

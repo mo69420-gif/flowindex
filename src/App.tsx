@@ -9,6 +9,7 @@ import MissionBriefing from "./pages/MissionBriefing";
 import SectorMap from "./pages/SectorMap";
 import SectorDetail from "./pages/SectorDetail";
 import SectorTargets from "./pages/SectorTargets";
+import OperationReview from "./pages/OperationReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/sectors" element={<SectorMap />} />
           <Route path="/sector/:key" element={<SectorDetail />} />
           <Route path="/sector/:key/targets" element={<SectorTargets />} />
+          <Route path="/review" element={<OperationReview />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

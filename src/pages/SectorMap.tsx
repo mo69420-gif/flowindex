@@ -15,7 +15,7 @@ export default function SectorMap() {
 
   const currentKey = getCurrentStage(state);
   const doneCount = sectorOrder.filter(k => sectorCleared(state, k)).length;
-
+  const allConfirmed = sectorOrder.length > 0 && sectorOrder.every(k => state.confirmedSectors.includes(k));
   return (
     <TerminalLayout title="SECTOR MAP" syslog={`${doneCount}/${sectorOrder.length} sectors cleared.`}>
       <div className="border border-border bg-muted p-3 mb-3.5">
@@ -65,6 +65,13 @@ export default function SectorMap() {
           })}
         </div>
       </div>
+
+      {/* Operation Review button when all confirmed */}
+      {allConfirmed && (
+        <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
+          {'>'} OPERATION COMPLETE — SUBMIT FINAL REVIEW
+        </TerminalButton>
+      )}
 
       <TerminalButton variant="back" onClick={() => navigate('/menu')}>
         {'<'} BACK TO MENU

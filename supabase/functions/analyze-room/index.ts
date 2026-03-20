@@ -196,10 +196,9 @@ Respond ONLY with valid JSON no markdown:
     }
 
     if (mode === "verify") {
-      const body = await req.json().catch(() => ({}));
-      const sectorName = body.sectorName || "UNKNOWN SECTOR";
-      const elapsedMin = body.elapsedMin;
-      const timeEst = body.timeEstimate;
+      const name = sectorName || "UNKNOWN SECTOR";
+      const elMin = elapsedMin;
+      const timeEst = timeEstimate;
 
       let timingContext = "";
       if (elapsedMin != null && timeEst != null) {

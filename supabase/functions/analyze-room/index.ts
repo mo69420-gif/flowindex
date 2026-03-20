@@ -14,8 +14,9 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { mode, images } = await req.json();
-    // mode: "panoramic" | "full_scan"
+    const reqBody = await req.json();
+    const { mode, images, sectorName, elapsedMin, timeEstimate } = reqBody;
+    // mode: "panoramic" | "full_scan" | "verify"
     // images: Array<{ label: string, dataUrl: string }>
 
     if (!images || !images.length) {

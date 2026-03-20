@@ -194,6 +194,67 @@ Respond ONLY with valid JSON no markdown:
       });
     }
 
+    if (mode === "verify") {
+      const body = await req.json().catch(() => ({}));
+      const sectorName = body.sectorName || "UNKNOWN SECTOR";
+      const elapsedMin = body.elapsedMin;
+      const timeEst = body.timeEstimate;
+
+      let timingContext = "";
+      if (elapsedMin != null && timeEst != null) {
+        const over = elapsedMin - timeEst;
+        if (over > timeEst) timingContext = `\nOperator took ${elapsedMin}min. ${over}min over. Unacceptable.`;
+        else if (over > 0) timingContext = `\nOperator took ${elapsedMin}min vs ${timeEst}. Slow.`;
+        else timingContext = `\nOperator finished in ${elapsedMin}min vs ${timeEst}. Ahead of schedule.`;
+      }
+
+      const prompt = `Hostile tactical AI of FlowIndex OS. Confirmation photo for: ${sectorName}.${timingContext}
+ASSESS: Indoor space with visible improvement? Or irrelevant (selfie, food, outdoors)?
+Respond ONLY with valid JSON:
+{"verified":true,"tone":"reward","message":"One punchy OS line max 20 words."}
+Irrelevant: verified=false tone=hostile. Cleaner: verified=true. Beat clock: tone=reward. Over: tone=hostile. Ambiguous room: verified=true.`;
+
+      const content = [
+        { type: "image_url", image_url: { url: images[0].dataUrl } },
+        { type: "text", text: prompt },
+      ];
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content }],
+        }),
+      });
+
+      if (!response.ok) {
+        return new Response(JSON.stringify({ verified: true, tone: "neutral", message: "Verification unavailable — passing you through." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || "";
+      try {
+        const parsed = parseAiJson(text);
+        return new Response(JSON.stringify({
+          verified: parsed.verified !== false,
+          tone: String(parsed.tone || "neutral"),
+          message: String(parsed.message || "Acknowledged."),
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(JSON.stringify({ verified: true, tone: "neutral", message: "Verification unavailable — passing you through." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ error: "Invalid mode" }), {
       status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

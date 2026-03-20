@@ -66,6 +66,13 @@ export default function SectorMap() {
         </div>
       </div>
 
+      {/* Operation Review button when all confirmed */}
+      {allConfirmed && (
+        <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
+          {'>'} OPERATION COMPLETE — SUBMIT FINAL REVIEW
+        </TerminalButton>
+      )}
+
       <TerminalButton variant="back" onClick={() => navigate('/menu')}>
         {'<'} BACK TO MENU
       </TerminalButton>

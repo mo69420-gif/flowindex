@@ -56,6 +56,12 @@ export default function SectorTargets() {
     if (!verifyPhoto) return;
     setVerifyState('verifying');
     try {
+      // Build target context for cross-referencing
+      const sectorTargetContext = sector.targets.map(t => ({
+        label: t.label,
+        action: state.targetActions[t.id] || 'unknown',
+      }));
+
       const { data, error } = await supabase.functions.invoke('analyze-room', {
         body: {
           mode: 'verify',
@@ -63,6 +69,7 @@ export default function SectorTargets() {
           sectorName: sector.name,
           elapsedMin: elapsed,
           timeEstimate: sector.timeEstimate,
+          sectorTargets: sectorTargetContext,
         },
       });
       if (error) throw error;

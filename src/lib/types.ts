@@ -69,6 +69,7 @@ export type FlowAction =
   | { type: 'SET_USERNAME'; payload: string }
   | { type: 'ADD_USER'; payload: string }
   | { type: 'SET_LOGS'; payload: string[] }
+  | { type: 'SET_MOOD'; payload: string }
   | { type: 'LOAD_SCAN'; payload: { sectors: Record<string, Sector>; sectorOrder: string[]; operationName: string } }
   | { type: 'SET_DIRECTIVES'; payload: Directive[] }
   | { type: 'COMPLETE_TARGET'; payload: { targetId: string; action: string; trash: number; loot: number } }

@@ -128,6 +128,8 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return { ...state, confirmedSectors: [...state.confirmedSectors, action.payload] };
     case 'START_SECTOR':
       return { ...state, sectorStarted: { ...state.sectorStarted, [action.payload]: new Date().toISOString() } };
+    case 'SET_MOOD':
+      return { ...state, sysMood: action.payload };
     case 'RESET':
       return { ...initialState };
     default:

@@ -1,5 +1,7 @@
+import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFlow, sectorCleared } from '@/lib/flowContext';
+import { supabase } from '@/integrations/supabase/client';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
@@ -7,6 +9,11 @@ export default function SectorTargets() {
   const { key } = useParams<{ key: string }>();
   const { state, dispatch } = useFlow();
   const navigate = useNavigate();
+
+  const [verifyState, setVerifyState] = useState<'idle' | 'uploading' | 'verifying' | 'result'>('idle');
+  const [verifyPhoto, setVerifyPhoto] = useState<string | null>(null);
+  const [verifyResult, setVerifyResult] = useState<{ verified: boolean; tone: string; message: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const sector = key ? state.sectors[key] : null;
   if (!sector || !key) {
@@ -33,10 +40,49 @@ export default function SectorTargets() {
     });
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVerifyState('uploading');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setVerifyPhoto(reader.result as string);
+      setVerifyState('uploading');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleVerify = async () => {
+    if (!verifyPhoto) return;
+    setVerifyState('verifying');
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-room', {
+        body: {
+          mode: 'verify',
+          images: [{ label: 'confirm', dataUrl: verifyPhoto }],
+          sectorName: sector.name,
+          elapsedMin: elapsed,
+          timeEstimate: sector.timeEstimate,
+        },
+      });
+      if (error) throw error;
+      setVerifyResult(data);
+      setVerifyState('result');
+    } catch {
+      // Fallback on error
+      setVerifyResult({ verified: true, tone: 'neutral', message: 'Verification unavailable — passing you through.' });
+      setVerifyState('result');
+    }
+  };
+
   const handleConfirm = () => {
     dispatch({ type: 'CONFIRM_SECTOR', payload: key });
     navigate('/sectors');
   };
+
+  const toneClass = verifyResult?.tone === 'hostile' ? 'border-destructive text-destructive'
+    : verifyResult?.tone === 'reward' ? 'border-primary text-primary'
+    : 'border-muted-foreground text-muted-foreground';
 
   return (
     <TerminalLayout title={`TARGETS — ${sector.name}`} syslog={`${doneCount}/${sector.targets.length} targets processed.`}>
@@ -46,7 +92,6 @@ export default function SectorTargets() {
         </div>
         <div className="text-muted-foreground text-xs mb-2 font-body">{sector.desc}</div>
 
-        {/* Timer */}
         {elapsed !== null && (
           <div className={`text-[11px] mb-3 ${elapsed > sector.timeEstimate ? 'text-destructive' : 'text-primary'}`}>
             ⏱ {elapsed} MIN ELAPSED / {sector.timeEstimate} MIN EST.
@@ -62,11 +107,7 @@ export default function SectorTargets() {
         const actionLabel = action === 'trash' ? 'ELIMINATED' : action === 'loot' ? 'SALVAGED' : action === 'relocate' ? 'RELOCATED' : '';
 
         return (
-          <div
-            key={target.id}
-            className={`border p-3 mb-2 ${isDone ? 'border-primary/20' : 'border-border'}`}
-          >
-            {/* Header */}
+          <div key={target.id} className={`border p-3 mb-2 ${isDone ? 'border-primary/20' : 'border-border'}`}>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className={`text-[10px] px-1.5 py-0.5 border tier-${target.tier}`}>
                 TIER {target.tier}
@@ -80,18 +121,12 @@ export default function SectorTargets() {
                 </span>
               )}
             </div>
-
-            {/* Why */}
             <div className="text-muted-foreground text-[11px] mb-2 pl-1 border-l-2 border-border leading-relaxed font-body">
               {target.why}
             </div>
-
-            {/* Scores */}
             <div className="text-muted-foreground text-[11px] mb-2">
               TRASH: +{target.trash} | LOOT: +{target.loot}
             </div>
-
-            {/* Action buttons */}
             {!isDone && (
               <div className="flex flex-col gap-1">
                 <TerminalButton variant="eliminate" onClick={() => handleAction(target.id, 'trash')}>
@@ -109,16 +144,79 @@ export default function SectorTargets() {
         );
       })}
 
-      {/* Confirmation */}
+      {/* Confirmation with photo verification */}
       {allDone && !state.confirmedSectors.includes(key) && (
         <div className="border border-primary bg-muted p-3 mt-3">
           <div className="text-primary text-xs tracking-widest mb-2">ALL TARGETS PROCESSED</div>
           <div className="text-muted-foreground text-[11px] font-body mb-3">
-            Sector cleared. Confirm to lock results and advance to next stage.
+            Upload a confirmation photo of the cleared sector. AI will verify before locking results.
           </div>
-          <TerminalButton variant="confirm" onClick={handleConfirm}>
-            {'>'} CONFIRM — SECTOR CLEARED
-          </TerminalButton>
+
+          {/* Photo upload zone */}
+          {verifyState === 'idle' && (
+            <div className="border border-dashed border-border p-3 mb-3">
+              <div className="relative">
+                <TerminalButton variant="scan" onClick={() => fileRef.current?.click()}>
+                  {'>'} UPLOAD CONFIRMATION PHOTO
+                </TerminalButton>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoSelect}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Photo captured, ready to verify */}
+          {verifyState === 'uploading' && verifyPhoto && (
+            <div className="border border-primary/30 p-3 mb-3">
+              <div className="text-primary/60 text-[10px] tracking-widest mb-2">PHOTO CAPTURED</div>
+              <img src={verifyPhoto} alt="Confirmation" className="w-full h-32 object-cover border border-border mb-2 opacity-80" />
+              <TerminalButton variant="confirm" onClick={handleVerify}>
+                {'>'} SUBMIT FOR AI VERIFICATION
+              </TerminalButton>
+            </div>
+          )}
+
+          {/* Verifying */}
+          {verifyState === 'verifying' && (
+            <div className="border border-primary/30 p-3 mb-3 text-center">
+              <div className="text-primary text-xs tracking-widest animate-pulse">
+                AI ANALYZING CONFIRMATION PHOTO...
+              </div>
+            </div>
+          )}
+
+          {/* Verification result */}
+          {verifyState === 'result' && verifyResult && (
+            <div className={`border p-3 mb-3 ${toneClass}`}>
+              <div className="text-xs tracking-widest mb-1">
+                {verifyResult.verified ? '✓ VERIFICATION PASSED' : '✗ VERIFICATION FAILED'}
+              </div>
+              <div className="text-[11px] font-body">{verifyResult.message}</div>
+            </div>
+          )}
+
+          {/* Confirm button after verified */}
+          {verifyResult?.verified && (
+            <TerminalButton variant="confirm" onClick={handleConfirm}>
+              {'>'} CONFIRM — SECTOR CLEARED
+            </TerminalButton>
+          )}
+
+          {/* Retry on failure */}
+          {verifyResult && !verifyResult.verified && (
+            <TerminalButton variant="default" onClick={() => {
+              setVerifyState('idle');
+              setVerifyPhoto(null);
+              setVerifyResult(null);
+            }}>
+              {'>'} RETAKE PHOTO
+            </TerminalButton>
+          )}
         </div>
       )}
 

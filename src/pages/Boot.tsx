@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFlow } from '@/lib/flowContext';
 import { BOOT_MESSAGES } from '@/lib/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
@@ -9,12 +10,35 @@ export default function Boot() {
   const { state, dispatch } = useFlow();
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [bootMsg, setBootMsg] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const bootMsg = useMemo(() => BOOT_MESSAGES[Math.floor(Math.random() * BOOT_MESSAGES.length)], []);
+  useEffect(() => {
+    let cancelled = false;
+    const fallback = BOOT_MESSAGES[Math.floor(Math.random() * BOOT_MESSAGES.length)];
+
+    supabase.functions.invoke('analyze-room', {
+      body: { mode: 'boot_message' },
+    }).then(({ data, error }) => {
+      if (cancelled) return;
+      if (error || !data?.message) {
+        setBootMsg(fallback);
+      } else {
+        setBootMsg(data.message);
+      }
+      setLoading(false);
+    }).catch(() => {
+      if (!cancelled) {
+        setBootMsg(fallback);
+        setLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const allUsers = state.allUsers;
 
-  // If users exist, show selection
   if (allUsers.length > 0) {
     return (
       <TerminalLayout title="BOOT" syslog="Select your profile or create a new one." showMatrix={false}>
@@ -57,7 +81,11 @@ export default function Boot() {
           FIRST BOOT // OPERATOR ID
         </div>
         <div className="text-muted-foreground text-xs mb-4 font-body leading-relaxed">
-          {bootMsg}
+          {loading ? (
+            <span className="animate-pulse">INITIALIZING BOOT SEQUENCE...</span>
+          ) : (
+            bootMsg
+          )}
         </div>
         <input
           type="text"

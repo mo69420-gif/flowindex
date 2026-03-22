@@ -17,6 +17,48 @@ serve(async (req) => {
     const reqBody = await req.json();
     const { mode, images, sectorName, elapsedMin, timeEstimate, sectorTargets } = reqBody;
 
+    // Boot message mode — no images needed
+    if (mode === "boot_message") {
+      const prompt = `You are the boot screen of FlowIndex OS — a hostile military AI cleaning app with absurdist humor.
+
+Generate ONE completely unique boot prompt asking the user to enter their name/callsign.
+
+Rules:
+- Max 15 words
+- Absurdist, dry, hostile but genuinely funny
+- Must reference the fact that they're about to clean something
+- Must ask for or reference their name/identity in some way
+- Never generic. Always surprising. Always different.
+- Vibe: drill sergeant meets absurdist comedian meets disappointed parent
+- No quotation marks in your response
+
+Return ONLY the one-liner. Nothing else.`;
+
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-lite",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      if (!response.ok) {
+        return new Response(JSON.stringify({ message: "Identify yourself. The chaos already knows you're here." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await response.json();
+      const msg = (data.choices?.[0]?.message?.content || "").trim().replace(/^["']|["']$/g, "");
+      return new Response(JSON.stringify({ message: msg || "Identify yourself. The chaos already knows you're here." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!images || !images.length) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

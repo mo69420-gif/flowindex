@@ -45,14 +45,14 @@ export default function StatusMatrix() {
           <span className="text-foreground text-[11px]">{state.scenarios} LOGGED</span>
         </div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="w-[90px] text-muted-foreground">LOOT</span>
+          <span className="w-[90px] text-muted-foreground">CLAIMED</span>
           <BarDisplay value={state.loot} />
           <span className="text-foreground text-[11px]">{state.loot} SECURED</span>
         </div>
         <div className="flex items-center gap-2 mb-1">
-          <span className="w-[90px] text-muted-foreground">TRASH</span>
+          <span className="w-[90px] text-muted-foreground">PURGED</span>
           <BarDisplay value={state.trash} />
-          <span className="text-foreground text-[11px]">{state.trash} PURGED</span>
+          <span className="text-foreground text-[11px]">{state.trash} ELIMINATED</span>
         </div>
 
         <div className="border-t border-border my-2" />

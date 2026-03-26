@@ -1,23 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import type { FlowState, FlowAction, ScenarioRecord } from './types';
 
-const MOOD_LADDER: [number, string][] = [
-  [0, "HOSTILE BUT HELPFUL"],
-  [10, "JUDGING YOU HEAVILY"],
-  [25, "CAUTIOUSLY OPTIMISTIC"],
-  [50, "MILDLY IMPRESSED"],
-  [75, "BEGRUDGINGLY PROUD"],
-  [100, "MAXIMUM RESPECT UNLOCKED"],
-];
-
-function getMood(trash: number): string {
-  let mood = MOOD_LADDER[0][1];
-  for (const [threshold, label] of MOOD_LADDER) {
-    if (trash >= threshold) mood = label;
-  }
-  return mood;
-}
-
 const initialState: FlowState = {
   username: null,
   allUsers: [],
@@ -36,6 +19,7 @@ const initialState: FlowState = {
   directives: [],
   sectorStarted: {},
   scenarioHistory: [],
+  loadingLines: [],
 };
 
 function flowReducer(state: FlowState, action: FlowAction): FlowState {
@@ -48,6 +32,8 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return { ...state, sysLogs: action.payload };
     case 'SET_DIRECTIVES':
       return { ...state, directives: action.payload, sysLogs: ["PANORAMIC ANALYZED.", `${action.payload.length} DIRECTIVES ISSUED.`, "FOLLOW EACH DIRECTIVE EXACTLY."] };
+    case 'SET_LOADING_LINES':
+      return { ...state, loadingLines: action.payload };
     case 'LOAD_SCAN': {
       const totalTargets = Object.values(action.payload.sectors).reduce((a, s) => a + s.targets.length, 0);
       const totalEst = Object.values(action.payload.sectors).reduce((a, s) => a + s.timeEstimate, 0);
@@ -112,7 +98,7 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
     }
     case 'COMPLETE_TARGET': {
       const { targetId, action: act, trash, loot } = action.payload;
-      const mult = act === 'trash' ? { t: 1.5, l: 0 } : act === 'loot' ? { t: 0, l: 1.5 } : { t: 0.5, l: 0.5 };
+      const mult = act === 'purge' ? { t: 1.5, l: 0 } : act === 'claim' ? { t: 0, l: 1.5 } : { t: 0.5, l: 0.5 };
       const newTrash = state.trash + Math.round(trash * mult.t);
       const newLoot = state.loot + Math.round(loot * mult.l);
       return {
@@ -121,7 +107,7 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         targetActions: { ...state.targetActions, [targetId]: act },
         trash: newTrash,
         loot: newLoot,
-        sysMood: getMood(newTrash),
+        // Mood does NOT change here — only on final review
       };
     }
     case 'CONFIRM_SECTOR':
@@ -130,6 +116,21 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return { ...state, sectorStarted: { ...state.sectorStarted, [action.payload]: new Date().toISOString() } };
     case 'SET_MOOD':
       return { ...state, sysMood: action.payload };
+    case 'RESET_SCENARIO':
+      return {
+        ...state,
+        completedTargets: [],
+        targetActions: {},
+        confirmedSectors: [],
+        sectorStarted: {},
+        loot: 0,
+        trash: 0,
+        sysLogs: ["SCENARIO RESET.", "SECTOR DATA PRESERVED.", "TARGETS RE-ARMED."],
+      };
+    case 'HARD_RESET': {
+      const users = state.allUsers;
+      return { ...initialState, allUsers: users };
+    }
     case 'RESET':
       return { ...initialState };
     default:

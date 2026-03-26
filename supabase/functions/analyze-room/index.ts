@@ -15,11 +15,11 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const reqBody = await req.json();
-    const { mode, images, sectorName, elapsedMin, timeEstimate, sectorTargets } = reqBody;
+    const { mode, images, sectorName, sectorDesc, elapsedMin, timeEstimate, sectorTargets } = reqBody;
 
-    // Boot message mode — no images needed
+    // Boot message mode
     if (mode === "boot_message") {
-      const prompt = `You are the boot screen of FlowIndex OS — a hostile military AI cleaning app with absurdist humor.
+      const prompt = `You are the boot screen of FlowIndex OS — a hostile military cleaning app with absurdist humor.
 
 Generate ONE completely unique boot prompt asking the user to enter their name/callsign.
 
@@ -59,6 +59,118 @@ Return ONLY the one-liner. Nothing else.`;
       });
     }
 
+    // Generate loading lines from panoramic
+    if (mode === "generate_loading_lines") {
+      if (!images || !images.length) {
+        return new Response(JSON.stringify({ lines: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const prompt = `You are FlowIndex OS — hostile military terminal personality. Absurdist dry humor.
+
+Look at this room photo and generate 12 short loading line messages that roast what you actually see.
+
+Rules:
+- Each line max 8 words
+- Reference SPECIFIC things visible in the photo
+- Darkly funny, hostile, absurdist
+- Like a loading screen that's judging you
+- No quotation marks
+- Examples of the VIBE: "Counting your abandoned projects..." / "Measuring the dust colony population..." / "Cataloguing questionable life decisions..."
+
+Respond ONLY with valid JSON:
+{"lines":["line 1...","line 2...","line 3...","line 4...","line 5...","line 6...","line 7...","line 8...","line 9...","line 10...","line 11...","line 12..."]}`;
+
+      const content = [
+        { type: "image_url", image_url: { url: images[0].dataUrl } },
+        { type: "text", text: prompt },
+      ];
+
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [{ role: "user", content }],
+          }),
+        });
+
+        if (!response.ok) {
+          return new Response(JSON.stringify({ lines: [] }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const data = await response.json();
+        const text = data.choices?.[0]?.message?.content || "";
+        const parsed = parseAiJson(text);
+        return new Response(JSON.stringify({ lines: parsed.lines || [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(JSON.stringify({ lines: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Attack suggestion per sector
+    if (mode === "attack_suggestion") {
+      const name = sectorName || "UNKNOWN SECTOR";
+      const desc = sectorDesc || "";
+      const targets = sectorTargets || [];
+      const targetList = targets.map((t: any) => `- ${t.label} (tier ${t.tier || 2})`).join("\n");
+
+      const prompt = `FlowIndex OS tactical advisor. Hostile military terminal personality.
+
+Sector: ${name}
+Description: ${desc}
+Targets:
+${targetList}
+
+Generate ONE tactical attack suggestion — a specific recommended order of operations for clearing this sector.
+What to hit first, why, and what that unlocks.
+2-3 sentences max. Hostile, specific, practical. Reference actual target names.
+No generic advice. Make it feel like a military briefing.
+
+Return ONLY the suggestion text. Nothing else.`;
+
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
+
+        if (!response.ok) {
+          return new Response(JSON.stringify({ suggestion: "Clear Tier 1 targets first. Work outward from the biggest obstruction. Don't stop once you start." }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const data = await response.json();
+        const suggestion = (data.choices?.[0]?.message?.content || "").trim();
+        return new Response(JSON.stringify({ suggestion: suggestion || "Clear Tier 1 targets first. Work outward." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(JSON.stringify({ suggestion: "Clear Tier 1 targets first. Work outward from the biggest obstruction. Don't stop once you start." }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (!images || !images.length) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -74,9 +186,11 @@ Issue 2-4 DIRECTIVES — specific follow-up shots you need for full analysis.
 Each directive targets a specific zone or problem area you noticed.
 Be specific and hostile. Name what you actually see.
 
-IMPORTANT: Focus on ACTIONABLE CLUTTER — items that can be moved, sorted, trashed, or organized.
-IGNORE: Stickers, decorations permanently attached to surfaces, wall art, paint colors, architectural features.
-Focus on: Items on surfaces, floor clutter, disorganized storage, stuff that doesn't belong.
+IMPORTANT:
+- Focus on ACTIONABLE CLUTTER — items that can be moved, sorted, trashed, or organized.
+- IGNORE: Stickers, decorations permanently attached to surfaces, wall art, paint colors, architectural features.
+- DO NOT direct shots at wall art, posters, stickers, or decor unless they are physically blocking movement.
+- Focus on functional clutter — items on surfaces, floors, furniture.
 
 Respond ONLY with valid JSON:
 {"directives":[{"id":"D1","label":"DIRECTIVE 1 — ZONE NAME","instruction":"Specific hostile instruction telling operator exactly where to stand and what to shoot. Name what you see there."}]}`;
@@ -132,11 +246,11 @@ ${images.length} photos of a real space. Cross-reference all.
 
 ${photoContext}
 
-CRITICAL RULES:
-- Focus ONLY on actionable clutter: items that can be moved, sorted, trashed, donated, or reorganized
-- IGNORE permanently attached decorative elements: stickers, wall art, paint, architectural features, mounted shelves
-- Focus on: loose items on surfaces, floor clutter, disorganized storage, items that don't belong where they are
-- If you see a toolbox, focus on the STUFF ON TOP OF IT or around it, not stickers on it
+CRITICAL RULES FOR TARGETS:
+- DO NOT include wall art, posters, stickers, paintings, or decorative items as targets UNLESS they are physically blocking movement or creating a safety hazard
+- Focus ONLY on functional clutter: items on surfaces, floors, furniture, storage
+- Cables, clothes, bottles, bags, boxes, tools, electronics = YES
+- Art on walls, decorative signs, tapestries = NO unless blocking a door/path
 
 FENG SHUI + ERGONOMICS + PSYCHOLOGY:
 - Order sectors by flow impact — clear pathway blockers first
@@ -144,22 +258,23 @@ FENG SHUI + ERGONOMICS + PSYCHOLOGY:
 
 For EACH sector return:
 
-INVENTORY — every single visible LOOSE/MOVEABLE item, numbered, with category.
+INVENTORY — every functional visible item, numbered, with category.
 Categories: CLEANING_SUPPLIES, PERSONAL_CARE, ELECTRONICS, FURNITURE_STORAGE, TEXTILES, FOOD_DRINK, TOOLS, DECOR, MISC
+(DECOR = art/decor items, list them but do NOT make them targets)
 
 IMPACT SCORES 1-5:
   flow_impact, psych_impact, ergonomic_risk
 
-WHY_IT_MATTERS: 2-3 sentences. Psychology, cortisol, decision fatigue, visual clutter science.
+WHY_IT_MATTERS: 2-3 sentences. Psychology, cortisol, decision fatigue.
 
-FINAL_ANALYSIS: 2-3 hostile motivating sentences about what clearing this does.
+FINAL_ANALYSIS: 2-3 hostile motivating sentences.
 
-TARGETS: 2-5 actionable items with tier (1=critical, 2=sort, 3=low), why (one-line reason), label, trash 5-25, loot 0-15.
+TARGETS: 2-5 FUNCTIONAL items only. No decor. Each with tier (1=critical, 2=sort, 3=low), why (one-line reason), label, purge 5-25, claim 0-15.
 
-Sector COUNT min 3 max 7.
+Sector COUNT min 3 max 7. ORDER flow-first.
 
 NICKNAME: Absurdist hostile military codename 2-4 words ALL CAPS. Be CREATIVE and FUNNY.
-Good examples: FORGOTTEN LAUNDRY INSURGENCY, CABLE SPAGHETTI TRIBUNAL, EXPIRED CONDIMENT CEMETERY, DUST BUNNY SOVEREIGNTY, CHAIR WARDROBE CRISIS, COUNTERTOP ANARCHY ZONE, FLOOR LAVA PROTOCOL
+Good examples: FORGOTTEN LAUNDRY INSURGENCY, CABLE SPAGHETTI TRIBUNAL, EXPIRED CONDIMENT CEMETERY, DUST BUNNY SOVEREIGNTY, CHAIR WARDROBE CRISIS, COUNTERTOP ANARCHY ZONE, FLOOR LAVA PROTOCOL, TEXTILE AVALANCHE STATION
 Bad examples: ZONE A, SECTOR 1, NORTH WALL (too boring)
 
 DESC: one hostile, funny sentence about the zone.
@@ -171,7 +286,7 @@ Format: OPERATION: [NAME] — 2-4 words ALL CAPS, absurdist hostile military nam
 Examples of the VIBE (do NOT reuse): OPERATION: CRIMSON TOWEL INCIDENT / OPERATION: FORGOTTEN FLOOR PROTOCOL / OPERATION: DOMESTIC ENTROPY CRISIS / OPERATION: SURFACE AREA RECLAMATION
 
 Respond ONLY with valid JSON no markdown:
-{"operation_name":"OPERATION: NAME HERE","sectors":[{"nickname":"NAME","desc":"Sentence.","time_estimate_minutes":10,"flow_impact":4,"psych_impact":5,"ergonomic_risk":3,"why_it_matters":"Explanation.","final_analysis":"Conclusion.","inventory":[{"number":"001","label":"Item","category":"CATEGORY"}],"targets":[{"label":"Item","tier":1,"why":"Reason.","trash":10,"loot":5}]}]}`;
+{"operation_name":"OPERATION: NAME HERE","sectors":[{"nickname":"NAME","desc":"Sentence.","time_estimate_minutes":10,"flow_impact":4,"psych_impact":5,"ergonomic_risk":3,"why_it_matters":"Explanation.","final_analysis":"Conclusion.","inventory":[{"number":"001","label":"Item","category":"CATEGORY"}],"targets":[{"label":"Item","tier":1,"why":"Reason.","purge":10,"claim":5}]}]}`;
 
       const contentParts: any[] = images.map((img: any) => ({
         type: "image_url",
@@ -213,7 +328,7 @@ Respond ONLY with valid JSON no markdown:
 
       const sectorsRaw = (parsed.sectors || []).slice(0, 7);
       if (sectorsRaw.length < 2) {
-        return new Response(JSON.stringify({ error: `AI only found ${sectorsRaw.length} sector(s). Try better photos.` }), {
+        return new Response(JSON.stringify({ error: `Only ${sectorsRaw.length} sector(s) found. Try better photos.` }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -230,8 +345,8 @@ Respond ONLY with valid JSON no markdown:
           label: String(t.label || `Item ${ti + 1}`),
           tier: Math.min(3, Math.max(1, Number(t.tier) || 2)),
           why: String(t.why || "Needs attention."),
-          trash: Number(t.trash) || 10,
-          loot: Number(t.loot) || 5,
+          trash: Number(t.purge) || Number(t.trash) || 10,
+          loot: Number(t.claim) || Number(t.loot) || 5,
         }));
 
         sectors[key] = {
@@ -263,6 +378,7 @@ Respond ONLY with valid JSON no markdown:
 
     if (mode === "verify") {
       const name = sectorName || "UNKNOWN SECTOR";
+      const desc = sectorDesc || "";
 
       let timingContext = "";
       if (elapsedMin != null && timeEstimate != null) {
@@ -272,26 +388,31 @@ Respond ONLY with valid JSON no markdown:
         else timingContext = `\nOperator finished in ${elapsedMin}min vs ${timeEstimate}. Ahead of schedule.`;
       }
 
-      // Build target context for cross-referencing
       let targetContext = "";
       if (sectorTargets && sectorTargets.length > 0) {
         const targetList = sectorTargets.map((t: any) => `- ${t.label} (${t.action})`).join("\n");
-        targetContext = `\n\nThe operator was supposed to handle these targets in this sector:\n${targetList}\n\nThe photo should show an INDOOR space consistent with these items. If the photo shows something completely unrelated (different room, outdoor scene, random objects that have NOTHING to do with the targets above), it should FAIL verification.`;
+        targetContext = `\n\nItems that were supposed to be cleared:\n${targetList}`;
       }
 
-      const prompt = `Hostile tactical AI of FlowIndex OS. Confirmation photo for sector: ${name}.${timingContext}${targetContext}
+      const prompt = `FlowIndex OS — strict confirmation verification.
 
-CRITICAL VERIFICATION RULES:
-1. The photo MUST show an indoor space that is PLAUSIBLY the same type of area where the listed targets would exist
-2. If the photo shows a completely DIFFERENT room type (e.g., bathroom photo for a workshop sector, outdoor scene for indoor sector), REJECT IT — verified=false, tone=hostile, roast the operator for trying to cheat
-3. If the photo shows the right kind of space but messy, still pass it — the OS is lenient on cleanliness but NOT on cheating
-4. Selfies, food photos, pets, memes, outdoor landscapes = INSTANT FAIL with maximum hostility
-5. If it looks like the right space and shows some effort: verified=true
+Sector being confirmed: ${name}
+Sector description: ${desc}
+${timingContext}${targetContext}
+
+STRICT ASSESSMENT RULES:
+1. Does the photo show an INDOOR space? If not (outdoors, food, selfie, random object) → REJECT immediately, roast hard.
+2. Does the photo appear to show the SAME general area as the sector described? If it's clearly a completely different room or unrelated space → REJECT.
+3. Is there ANY visible evidence of improvement — clearer surfaces, less clutter, more floor space? → ACCEPT.
+4. Benefit of the doubt only if it genuinely looks like it COULD be the right area with improvement.
+5. A bathroom photo for a bedroom sector = REJECT. An unrelated random photo = REJECT and roast.
+
+Be STRICT. The operator should not be able to pass by submitting random photos.
 
 Respond ONLY with valid JSON:
-{"verified":true,"tone":"reward","message":"One punchy OS line max 20 words."}
+{"verified":true,"tone":"reward","message":"One punchy hostile OS line max 20 words. Reference what you see or don't see."}
 
-tone options: "hostile" (failed/over time/cheating), "reward" (passed + good job), "neutral" (passed but meh)`;
+Tones: reward=beat the clock or genuinely good, hostile=rejected or way over time, neutral=on time acceptable.`;
 
       const content = [
         { type: "image_url", image_url: { url: images[0].dataUrl } },
@@ -335,31 +456,33 @@ tone options: "hostile" (failed/over time/cheating), "reward" (passed + good job
     }
 
     if (mode === "final_review") {
-      // End-of-operation review with follow-up photo
       const { operationName: opName, stats } = reqBody;
+      const username = stats?.username || "OPERATOR";
+      const totalEst = stats?.totalEst || "unknown";
 
-      const prompt = `You are the hostile tactical AI of FlowIndex OS. The operator just finished an operation.
+      const prompt = `FlowIndex OS end-of-operation review. Hostile military personality.
 
+Operator: ${username}
 Operation: ${opName || "UNKNOWN"}
-Stats: ${stats ? JSON.stringify(stats) : "unknown"}
+Targets cleared: ${stats?.targetsCompleted || 0}/${stats?.targets || 0}
+Estimated time: ${totalEst} min
 
-The operator submitted a final photo of the space AFTER completing all sectors.
+Look at this final photo of the space. Assess how well the operator actually did.
 
-ASSESS the photo:
-1. Does it look like a space that's been cleaned/organized compared to what a messy room would look like?
-2. Rate the overall effort on a scale
+Generate:
+1. A mood rating from this list based on what you actually see:
+   HOSTILE BUT HELPFUL / JUDGING YOU HEAVILY / CAUTIOUSLY OPTIMISTIC / MILDLY IMPRESSED / BEGRUDGINGLY PROUD / MAXIMUM RESPECT UNLOCKED
+
+2. A rating 1-10 based on visible effort.
+
+3. A full hostile scenario review — 3-4 sentences. Reference what you actually see in the photo.
+   Be specific. Roast or praise based on actual visible results.
+   End with one line about what to tackle next time.
+
+4. A one-liner verdict.
 
 Respond ONLY with valid JSON:
-{"rating":1-10,"mood":"MOOD_STRING","roast":"2-3 sentences. If they did well: begrudging respect with backhanded compliments. If they didn't: savage but motivating. Either way be FUNNY and specific about what you see.","verdict":"One-liner summary of the operation outcome."}
-
-MOOD options (pick one based on effort quality):
-- "MAXIMUM RESPECT UNLOCKED" (8-10 rating, place looks great)
-- "BEGRUDGINGLY PROUD" (6-7, decent effort)
-- "CAUTIOUSLY OPTIMISTIC" (4-5, some improvement visible)
-- "JUDGING YOU HEAVILY" (2-3, barely tried)
-- "HOSTILE BUT HELPFUL" (1, did they even do anything?)
-
-Be funny. Be specific about what you see in the photo. Reference the operation name.`;
+{"rating":7,"mood":"MOOD HERE","roast":"Full review text here.","verdict":"One-liner."}`;
 
       const content = [
         { type: "image_url", image_url: { url: images[0].dataUrl } },
@@ -381,7 +504,7 @@ Be funny. Be specific about what you see in the photo. Reference the operation n
       if (!response.ok) {
         return new Response(JSON.stringify({
           rating: 5, mood: "CAUTIOUSLY OPTIMISTIC",
-          roast: "Verification unavailable. The AI assumes you did... something.",
+          roast: "Verification unavailable. The system assumes you did... something.",
           verdict: "Inconclusive. Benefit of the doubt granted.",
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -395,7 +518,7 @@ Be funny. Be specific about what you see in the photo. Reference the operation n
         return new Response(JSON.stringify({
           rating: Math.min(10, Math.max(1, Number(parsed.rating) || 5)),
           mood: String(parsed.mood || "CAUTIOUSLY OPTIMISTIC"),
-          roast: String(parsed.roast || "The AI has no comment. Suspicious."),
+          roast: String(parsed.roast || "The system has no comment. Suspicious."),
           verdict: String(parsed.verdict || "Operation status: unclear."),
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -403,7 +526,7 @@ Be funny. Be specific about what you see in the photo. Reference the operation n
       } catch {
         return new Response(JSON.stringify({
           rating: 5, mood: "CAUTIOUSLY OPTIMISTIC",
-          roast: "AI couldn't parse its own thoughts. That's how confusing your space is.",
+          roast: "System couldn't parse its own thoughts. That's how confusing your space is.",
           verdict: "Operation complete. Probably.",
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

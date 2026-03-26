@@ -27,6 +27,7 @@ export default function Scan() {
   const [loadingLogs, setLoadingLogs] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [aiDirectives, setAiDirectives] = useState<Directive[]>([]);
+  const [customLoadingLines, setCustomLoadingLines] = useState<string[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const abortRef = useRef(false);
 
@@ -35,6 +36,11 @@ export default function Scan() {
   }, []);
 
   const directives = aiDirectives.length > 0 ? aiDirectives : state.directives;
+
+  // Use custom AI-generated loading lines if available, fallback to static
+  const activeLoadingLines = customLoadingLines.length > 0 ? customLoadingLines
+    : state.loadingLines.length > 0 ? state.loadingLines
+    : LOADING_LINES;
 
   const startLoadingAnimation = () => {
     setLoadingPct(0);
@@ -52,9 +58,9 @@ export default function Scan() {
       if (pct > 90) pct = 90;
       setLoadingPct(pct);
 
-      if (lineIdx < LOADING_LINES.length) {
-        setLoadingMsg(LOADING_LINES[lineIdx]);
-        setLoadingLogs(prev => [...prev.slice(-4), LOADING_LINES[lineIdx]]);
+      if (lineIdx < activeLoadingLines.length) {
+        setLoadingMsg(activeLoadingLines[lineIdx]);
+        setLoadingLogs(prev => [...prev.slice(-4), activeLoadingLines[lineIdx]]);
         lineIdx++;
       }
     }, 800);
@@ -72,11 +78,28 @@ export default function Scan() {
 
     try {
       const dataUrl = await fileToDataUrl(panoFile);
-      const { data, error } = await supabase.functions.invoke('analyze-room', {
-        body: { mode: 'panoramic', images: [{ label: 'panoramic', dataUrl }] },
-      });
+
+      // Fire panoramic analysis AND loading lines generation in parallel
+      const [panoResult, loadingResult] = await Promise.allSettled([
+        supabase.functions.invoke('analyze-room', {
+          body: { mode: 'panoramic', images: [{ label: 'panoramic', dataUrl }] },
+        }),
+        supabase.functions.invoke('analyze-room', {
+          body: { mode: 'generate_loading_lines', images: [{ label: 'panoramic', dataUrl }] },
+        }),
+      ]);
 
       stopLoadingAnimation();
+
+      // Handle loading lines result
+      if (loadingResult.status === 'fulfilled' && loadingResult.value.data?.lines) {
+        setCustomLoadingLines(loadingResult.value.data.lines);
+        dispatch({ type: 'SET_LOADING_LINES', payload: loadingResult.value.data.lines });
+      }
+
+      // Handle panoramic result
+      if (panoResult.status === 'rejected') throw new Error('Panoramic analysis failed');
+      const { data, error } = panoResult.value;
       if (error) throw new Error(error.message || 'Panoramic analysis failed');
       if (data?.error) throw new Error(data.error);
 
@@ -164,14 +187,14 @@ export default function Scan() {
   // Loading screen
   if (step === 'loading') {
     return (
-      <TerminalLayout title="SCANNING" syslog="AI is analyzing. Do not close this screen.">
+      <TerminalLayout title="SCANNING" syslog="Analyzing. Do not close this screen.">
         <div className="border border-primary p-4 bg-muted">
           <div className="h-1 bg-border w-full mb-1.5">
             <div className="h-1 bg-primary transition-all duration-700" style={{ width: `${loadingPct}%` }} />
           </div>
           <div className="text-primary text-[11px] text-right mb-2">{loadingPct}%</div>
           <div className="text-primary text-xs tracking-wide mb-1.5 min-h-[18px]">
-            [AI] {loadingMsg}
+            [SYSTEM] {loadingMsg}
           </div>
           <div className="text-muted-foreground text-[11px] max-h-20 overflow-hidden">
             {loadingLogs.map((line, i) => (
@@ -186,16 +209,16 @@ export default function Scan() {
   // Step 2: Directives
   if (step === 'directives') {
     return (
-      <TerminalLayout title="SCAN_STEP_2" syslog="Follow each directive. Shoot exactly what AI asked for.">
+      <TerminalLayout title="SCAN_STEP_2" syslog="Follow each directive. Shoot exactly what was asked for.">
         <div className="border border-border bg-muted p-3 mb-3.5">
           <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
-            SCAN // STEP 2 OF 2 — AI DIRECTIVES
+            SCAN // STEP 2 OF 2 — DIRECTIVES
           </div>
           <div className="text-muted-foreground text-xs mb-2 font-body leading-relaxed">
-            AI analyzed your space and needs these specific shots.{'\n'}Follow each directive exactly.
+            Follow each directive exactly. Upload or take photos for each zone.
           </div>
           <div className="text-accent text-[10px] tracking-widest mb-4">
-            TIP: USE YOUR PHONE CAMERA — REGULAR PHOTOS WORK FINE HERE
+            TIP: REGULAR PHOTOS WORK FINE HERE
           </div>
         </div>
 
@@ -226,7 +249,7 @@ export default function Scan() {
         ))}
 
         <TerminalButton variant="scan" onClick={runFullScan}>
-          {'>'} RUN FULL SCAN — ANALYZE WITH AI
+          {'>'} RUN FULL SCAN — ANALYZE ROOM
         </TerminalButton>
 
         <TerminalButton variant="back" onClick={() => setStep('panoramic')}>
@@ -238,19 +261,19 @@ export default function Scan() {
 
   // Step 1: Panoramic
   return (
-    <TerminalLayout title="SCAN_STEP_1" syslog="One wide shot. AI analyzes and issues directives.">
+    <TerminalLayout title="SCAN_STEP_1" syslog="Open phone camera. Switch to panoramic. Sweep. Upload.">
       <div className="border border-border bg-muted p-3 mb-3.5">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
           SCAN // STEP 1 OF 2 — PANORAMIC
         </div>
         <div className="text-muted-foreground text-xs mb-3 font-body leading-relaxed whitespace-pre-wrap">
-          Take a PANORAMIC photo of the space with your phone camera.{'\n'}Open your phone's camera app → select PANO mode → sweep slowly left to right.{'\n'}Then upload it here.
+          Open your phone camera app. Switch to PANORAMIC mode.{'\n'}Sweep slowly across the entire space — left to right.{'\n'}Get everything in frame. Then come back and upload it here.
         </div>
         <div className="text-accent text-[10px] tracking-widest mb-1">
           ⚠ PANORAMIC PHOTOS PRODUCE SIGNIFICANTLY BETTER RESULTS
         </div>
         <div className="text-muted-foreground text-[10px] mb-2 font-body">
-          Regular wide-angle photos work too, but panoramic captures more of the space for AI to analyze.
+          The OS analyzes it and tells you exactly what follow-up shots it needs.
         </div>
       </div>
 
@@ -266,7 +289,7 @@ export default function Scan() {
         <div className="px-3.5 pb-3.5">
           {!panoFile && (
             <div className="text-muted-foreground text-xs mb-3 font-body">
-              Take pano with your phone → upload here. Get everything in frame.
+              Take panoramic with phone camera app, then upload here.
             </div>
           )}
           {panoFile && (
@@ -277,7 +300,7 @@ export default function Scan() {
           <label className={`block w-full border text-xs px-3 py-3 text-center cursor-pointer relative tracking-wide ${
             panoFile ? 'border-primary text-primary' : 'border-border text-muted-foreground'
           }`}>
-           {'>'} {panoFile ? 'CHANGE PHOTO' : 'UPLOAD PANORAMIC PHOTO'}
+           {'>'} {panoFile ? 'CHANGE PHOTO' : 'TAP TO UPLOAD PANORAMIC'}
             <input
               type="file"
               accept="image/*"
@@ -296,7 +319,7 @@ export default function Scan() {
         disabled={!panoFile}
         onClick={analyzePanoramic}
       >
-        {'>'} ANALYZE SPACE — GET AI DIRECTIVES
+        {'>'} ANALYZE — GET DIRECTIVES
       </TerminalButton>
 
       <TerminalButton variant="back" onClick={() => navigate('/menu')}>

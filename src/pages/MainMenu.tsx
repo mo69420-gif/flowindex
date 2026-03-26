@@ -4,7 +4,7 @@ import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
 export default function MainMenu() {
-  const { state, dispatch } = useFlow();
+  const { state } = useFlow();
   const navigate = useNavigate();
 
   if (!state.username) {
@@ -29,11 +29,6 @@ export default function MainMenu() {
     ? 'ALL SECTORS CLEARED. RESCAN FOR A NEW OP.'
     : `Stage ${done + 1} of ${total} active. Hit SECTOR MAP.`;
 
-  const handleReset = () => {
-    dispatch({ type: 'RESET' });
-    navigate('/');
-  };
-
   return (
     <TerminalLayout title="ROOT" syslog={log}>
       <div className="border border-border bg-muted p-3">
@@ -52,20 +47,11 @@ export default function MainMenu() {
             {'>'} SECTOR MAP{sectorLabel}
           </TerminalButton>
           <TerminalButton
-            variant={state.scenarios === 0 ? 'locked' : undefined}
-            disabled={state.scenarios === 0}
             onClick={() => navigate('/scenarios')}
           >
             {'>'} SCENARIOS
           </TerminalButton>
         </div>
-      </div>
-
-      {/* Reset button */}
-      <div className="mt-6">
-        <TerminalButton variant="danger" onClick={handleReset}>
-          {'>'} WIPE OS — FULL RESET
-        </TerminalButton>
       </div>
     </TerminalLayout>
   );

@@ -12,8 +12,7 @@ export default function TerminalLayout({ title, syslog, showMatrix = true, child
     <div className="max-w-[600px] mx-auto px-3 pt-4 pb-20 font-display">
       {/* OS Title Bar */}
       <div className="text-primary text-[13px] tracking-[2px] border-b border-border pb-2 mb-3 flex items-center gap-2">
-        <span className="flex-1">FLOWINDEX OS v4.3 // {title}</span>
-        <span className="text-[10px] px-1.5 py-0.5 border border-primary text-primary shrink-0">AI LIVE</span>
+        <span className="flex-1">FLOWINDEX OS v4.4 // {title}</span>
       </div>
 
       {showMatrix && <StatusMatrix />}

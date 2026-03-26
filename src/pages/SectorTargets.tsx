@@ -56,7 +56,6 @@ export default function SectorTargets() {
     if (!verifyPhoto) return;
     setVerifyState('verifying');
     try {
-      // Build target context for cross-referencing
       const sectorTargetContext = sector.targets.map(t => ({
         label: t.label,
         action: state.targetActions[t.id] || 'unknown',
@@ -67,6 +66,7 @@ export default function SectorTargets() {
           mode: 'verify',
           images: [{ label: 'confirm', dataUrl: verifyPhoto }],
           sectorName: sector.name,
+          sectorDesc: sector.desc,
           elapsedMin: elapsed,
           timeEstimate: sector.timeEstimate,
           sectorTargets: sectorTargetContext,
@@ -76,7 +76,6 @@ export default function SectorTargets() {
       setVerifyResult(data);
       setVerifyState('result');
     } catch {
-      // Fallback on error
       setVerifyResult({ verified: true, tone: 'neutral', message: 'Verification unavailable — passing you through.' });
       setVerifyState('result');
     }
@@ -85,6 +84,13 @@ export default function SectorTargets() {
   const handleConfirm = () => {
     dispatch({ type: 'CONFIRM_SECTOR', payload: key });
     navigate('/sectors');
+  };
+
+  const getActionLabel = (action: string) => {
+    if (action === 'purge') return 'PURGED';
+    if (action === 'claim') return 'CLAIMED';
+    if (action === 'exile') return 'EXILED';
+    return '';
   };
 
   const toneClass = verifyResult?.tone === 'hostile' ? 'border-destructive text-destructive'
@@ -111,7 +117,7 @@ export default function SectorTargets() {
       {sector.targets.map(target => {
         const isDone = state.completedTargets.includes(target.id);
         const action = state.targetActions[target.id];
-        const actionLabel = action === 'trash' ? 'ELIMINATED' : action === 'loot' ? 'SALVAGED' : action === 'relocate' ? 'RELOCATED' : '';
+        const actionLabel = getActionLabel(action);
 
         return (
           <div key={target.id} className={`border p-3 mb-2 ${isDone ? 'border-primary/20' : 'border-border'}`}>
@@ -132,18 +138,18 @@ export default function SectorTargets() {
               {target.why}
             </div>
             <div className="text-muted-foreground text-[11px] mb-2">
-              TRASH: +{target.trash} | LOOT: +{target.loot}
+              PURGE: +{target.trash} | CLAIM: +{target.loot}
             </div>
             {!isDone && (
               <div className="flex flex-col gap-1">
-                <TerminalButton variant="eliminate" onClick={() => handleAction(target.id, 'trash')}>
-                  {'>'} ELIMINATE — TRASH IT (+{Math.round(target.trash * 1.5)} TRASH)
+                <TerminalButton variant="eliminate" onClick={() => handleAction(target.id, 'purge')}>
+                  {'>'} PURGE — TRASH IT (+{Math.round(target.trash * 1.5)} PURGE)
                 </TerminalButton>
-                <TerminalButton variant="salvage" onClick={() => handleAction(target.id, 'loot')}>
-                  {'>'} SALVAGE — KEEP IT (+{Math.round(target.loot * 1.5)} LOOT)
+                <TerminalButton variant="salvage" onClick={() => handleAction(target.id, 'claim')}>
+                  {'>'} CLAIM — KEEP IT (+{Math.round(target.loot * 1.5)} CLAIM)
                 </TerminalButton>
-                <TerminalButton variant="relocate" onClick={() => handleAction(target.id, 'relocate')}>
-                  {'>'} RELOCATE — MOVE IT (+{Math.round(target.trash * 0.5)} / +{Math.round(target.loot * 0.5)})
+                <TerminalButton variant="relocate" onClick={() => handleAction(target.id, 'exile')}>
+                  {'>'} EXILE — MOVE IT (+{Math.round(target.trash * 0.5)} / +{Math.round(target.loot * 0.5)})
                 </TerminalButton>
               </div>
             )}
@@ -156,10 +162,10 @@ export default function SectorTargets() {
         <div className="border border-primary bg-muted p-3 mt-3">
           <div className="text-primary text-xs tracking-widest mb-2">ALL TARGETS PROCESSED</div>
           <div className="text-muted-foreground text-[11px] font-body mb-3">
-            Upload a confirmation photo of the cleared sector. AI will verify before locking results.
+            Take a photo of THIS sector showing visible improvement.{'\n'}
+            Random photos, selfies, or unrelated rooms = rejected.
           </div>
 
-          {/* Photo upload zone */}
           {verifyState === 'idle' && (
             <div className="border border-dashed border-border p-3 mb-3">
               <div className="relative">
@@ -177,27 +183,24 @@ export default function SectorTargets() {
             </div>
           )}
 
-          {/* Photo captured, ready to verify */}
           {verifyState === 'uploading' && verifyPhoto && (
             <div className="border border-primary/30 p-3 mb-3">
               <div className="text-primary/60 text-[10px] tracking-widest mb-2">PHOTO CAPTURED</div>
               <img src={verifyPhoto} alt="Confirmation" className="w-full h-32 object-cover border border-border mb-2 opacity-80" />
               <TerminalButton variant="confirm" onClick={handleVerify}>
-                {'>'} SUBMIT FOR AI VERIFICATION
+                {'>'} SUBMIT FOR VERIFICATION
               </TerminalButton>
             </div>
           )}
 
-          {/* Verifying */}
           {verifyState === 'verifying' && (
             <div className="border border-primary/30 p-3 mb-3 text-center">
               <div className="text-primary text-xs tracking-widest animate-pulse">
-                AI ANALYZING CONFIRMATION PHOTO...
+                VERIFYING CONFIRMATION PHOTO...
               </div>
             </div>
           )}
 
-          {/* Verification result */}
           {verifyState === 'result' && verifyResult && (
             <div className={`border p-3 mb-3 ${toneClass}`}>
               <div className="text-xs tracking-widest mb-1">
@@ -207,14 +210,12 @@ export default function SectorTargets() {
             </div>
           )}
 
-          {/* Confirm button after verified */}
           {verifyResult?.verified && (
             <TerminalButton variant="confirm" onClick={handleConfirm}>
               {'>'} CONFIRM — SECTOR CLEARED
             </TerminalButton>
           )}
 
-          {/* Retry on failure */}
           {verifyResult && !verifyResult.verified && (
             <TerminalButton variant="default" onClick={() => {
               setVerifyState('idle');

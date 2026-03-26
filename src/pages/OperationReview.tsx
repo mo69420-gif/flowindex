@@ -19,9 +19,10 @@ export default function OperationReview() {
     verdict: string;
   } | null>(null);
 
-  const { sectors, sectorOrder, operationName, completedTargets, trash, loot } = state;
+  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, username } = state;
   const totalTargets = sectorOrder.reduce((a, k) => a + (sectors[k]?.targets.length ?? 0), 0);
   const sectorsCleared = sectorOrder.filter(k => sectorCleared(state, k)).length;
+  const totalEst = sectorOrder.reduce((a, k) => a + (sectors[k]?.timeEstimate ?? 0), 0);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,12 +43,14 @@ export default function OperationReview() {
           images: [{ label: 'final_review', dataUrl: photo }],
           operationName,
           stats: {
+            username: username || 'OPERATOR',
             sectors: sectorOrder.length,
             sectorsCleared,
             targets: totalTargets,
             targetsCompleted: completedTargets.length,
             trash,
             loot,
+            totalEst,
           },
         },
       });
@@ -55,7 +58,6 @@ export default function OperationReview() {
       if (error) throw error;
 
       setResult(data);
-      // Update mood based on AI review
       if (data?.mood) {
         dispatch({ type: 'SET_MOOD', payload: data.mood });
       }
@@ -64,7 +66,7 @@ export default function OperationReview() {
       setResult({
         rating: 5,
         mood: 'CAUTIOUSLY OPTIMISTIC',
-        roast: 'Verification unavailable. The AI assumes you did... something.',
+        roast: 'Verification unavailable. The system assumes you did... something.',
         verdict: 'Operation status: inconclusive.',
       });
       setReviewState('result');
@@ -90,20 +92,22 @@ export default function OperationReview() {
   };
 
   return (
-    <TerminalLayout title="OPERATION REVIEW" syslog={`${operationName} — final assessment pending.`}>
+    <TerminalLayout title="FINAL REVIEW" syslog={`${operationName} — final assessment pending.`}>
       {/* Op stats summary */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary text-[13px] tracking-[2px] border-b border-border pb-1.5 mb-2">
           {operationName} — DEBRIEF
         </div>
         <div className="grid grid-cols-2 gap-y-1 text-xs mb-2">
+          <span className="text-muted-foreground">OPERATOR</span>
+          <span className="text-foreground text-right">{username || 'OPERATOR'}</span>
           <span className="text-muted-foreground">SECTORS CLEARED</span>
           <span className="text-foreground text-right">{sectorsCleared}/{sectorOrder.length}</span>
           <span className="text-muted-foreground">TARGETS HIT</span>
           <span className="text-foreground text-right">{completedTargets.length}/{totalTargets}</span>
-          <span className="text-muted-foreground">ITEMS PURGED</span>
+          <span className="text-muted-foreground">PURGED</span>
           <span className="text-foreground text-right">{trash}</span>
-          <span className="text-muted-foreground">LOOT SECURED</span>
+          <span className="text-muted-foreground">CLAIMED</span>
           <span className="text-foreground text-right">{loot}</span>
         </div>
       </div>
@@ -113,15 +117,15 @@ export default function OperationReview() {
         <div className="border border-primary bg-muted p-3 mb-3">
           <div className="text-primary text-xs tracking-widest mb-2">FINAL VERIFICATION REQUIRED</div>
           <div className="text-muted-foreground text-[11px] font-body mb-3 leading-relaxed">
-            Take a follow-up photo or panoramic of the space NOW.{'\n'}
-            The AI will compare against what it saw before and rate your performance.{'\n'}
-            This determines your final SYS_MOOD rating.
+            Take a FINAL panoramic of the entire space.{'\n'}
+            Same sweep as the initial panoramic. Show the full space.{'\n'}
+            This is where mood is determined. Don't cheat.
           </div>
 
           {!photo && (
             <div className="border border-dashed border-border p-3 mb-3">
               <TerminalButton variant="scan" onClick={() => fileRef.current?.click()}>
-                {'>'} UPLOAD FOLLOW-UP PHOTO
+                {'>'} TAP TO UPLOAD FINAL PANORAMIC
               </TerminalButton>
               <input
                 ref={fileRef}
@@ -138,7 +142,7 @@ export default function OperationReview() {
               <div className="text-primary/60 text-[10px] tracking-widest mb-2">PHOTO CAPTURED</div>
               <img src={photo} alt="Final review" className="w-full h-32 object-cover border border-border mb-2 opacity-80" />
               <TerminalButton variant="confirm" onClick={handleSubmitReview}>
-                {'>'} SUBMIT FOR FINAL AI REVIEW
+                {'>'} SUBMIT FINAL REVIEW
               </TerminalButton>
             </div>
           )}
@@ -149,7 +153,7 @@ export default function OperationReview() {
       {reviewState === 'verifying' && (
         <div className="border border-primary/30 p-3 mb-3 text-center">
           <div className="text-primary text-xs tracking-widest animate-pulse">
-            AI REVIEWING OPERATION RESULTS...
+            ANALYZING FINAL STATE...
           </div>
           <div className="text-muted-foreground text-[10px] mt-2 font-body">
             Comparing before and after. Generating judgment.
@@ -160,6 +164,20 @@ export default function OperationReview() {
       {/* Result */}
       {reviewState === 'result' && result && (
         <>
+          <div className="border border-primary bg-muted p-3 mb-3">
+            <div className="text-primary text-[13px] tracking-[2px] border-b border-border pb-1.5 mb-2">
+              OPERATION COMPLETE
+            </div>
+          </div>
+
+          {/* Final Mood */}
+          <div className="border border-border bg-muted p-3 mb-3">
+            <div className="text-primary text-[11px] tracking-widest mb-2">FINAL MOOD</div>
+            <div className="text-destructive text-sm tracking-widest font-display">
+              {result.mood}
+            </div>
+          </div>
+
           {/* Rating */}
           <div className="border border-border bg-muted p-3 mb-3">
             <div className="text-primary text-[11px] tracking-widest mb-2">PERFORMANCE RATING</div>
@@ -169,34 +187,29 @@ export default function OperationReview() {
                 {result.rating}/10
               </span>
             </div>
-            <div className="text-[11px] tracking-widest mb-1">
-              <span className="text-muted-foreground">SYS_MOOD: </span>
-              <span className="text-destructive">{result.mood}</span>
-            </div>
           </div>
 
-          {/* AI Verdict */}
+          {/* OS Review */}
           <div className="border border-primary/40 bg-muted p-3 mb-3">
-            <div className="text-primary text-[11px] tracking-widest mb-2">AI VERDICT</div>
-            <div className="text-accent text-xs font-body mb-3 leading-relaxed italic">
-              "{result.verdict}"
-            </div>
-            <div className="text-muted-foreground text-[11px] font-body leading-relaxed border-l-2 border-destructive pl-3">
+            <div className="text-primary text-[11px] tracking-widest mb-2">OS REVIEW</div>
+            <div className="text-muted-foreground text-[11px] font-body leading-relaxed border-l-2 border-destructive pl-3 mb-3">
               {result.roast}
             </div>
+            <div className="text-accent text-xs font-body italic">
+              "{result.verdict}"
+            </div>
           </div>
 
-          {/* Skip / Finish */}
           <TerminalButton variant="confirm" onClick={handleFinish}>
-            {'>'} CLOSE OPERATION — RETURN TO BASE
+            {'>'} BACK TO MAIN MENU
           </TerminalButton>
         </>
       )}
 
       {/* Skip review option */}
       {reviewState === 'upload' && (
-        <TerminalButton variant="back" onClick={handleFinish}>
-          {'<'} SKIP REVIEW — CLOSE OPERATION
+        <TerminalButton variant="back" onClick={() => navigate('/sectors')}>
+          {'<'} BACK TO MAP
         </TerminalButton>
       )}
     </TerminalLayout>

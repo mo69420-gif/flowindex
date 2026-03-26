@@ -63,6 +63,7 @@ export interface FlowState {
   directives: Directive[];
   sectorStarted: Record<string, string>;
   scenarioHistory: ScenarioRecord[];
+  loadingLines: string[];
 }
 
 export type FlowAction =
@@ -70,10 +71,13 @@ export type FlowAction =
   | { type: 'ADD_USER'; payload: string }
   | { type: 'SET_LOGS'; payload: string[] }
   | { type: 'SET_MOOD'; payload: string }
+  | { type: 'SET_LOADING_LINES'; payload: string[] }
   | { type: 'LOAD_SCAN'; payload: { sectors: Record<string, Sector>; sectorOrder: string[]; operationName: string } }
   | { type: 'SET_DIRECTIVES'; payload: Directive[] }
   | { type: 'COMPLETE_TARGET'; payload: { targetId: string; action: string; trash: number; loot: number } }
   | { type: 'CONFIRM_SECTOR'; payload: string }
   | { type: 'START_SECTOR'; payload: string }
   | { type: 'ARCHIVE_SCENARIO' }
+  | { type: 'RESET_SCENARIO' }
+  | { type: 'HARD_RESET' }
   | { type: 'RESET' };

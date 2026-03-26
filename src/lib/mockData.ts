@@ -104,24 +104,21 @@ export const MOCK_SECTORS: Record<string, Sector> = {
 
 export const MOCK_SECTOR_ORDER = ["ALPHA", "BRAVO", "CHARLIE", "DELTA"];
 
+// Fallback loading lines if AI generation fails
 export const LOADING_LINES = [
-  "Assessing the wreckage...",
-  "Questioning every decision that led to this moment...",
-  "Counting items you forgot you owned...",
-  "Identifying zones of maximum domestic failure...",
-  "Cross-referencing all evidence of neglect...",
-  "Calculating how many Netflix binges caused this...",
-  "Mapping trip hazards and moral compromises...",
-  "Running feng shui violation analysis... results: catastrophic...",
-  "Measuring psychological damage per square foot...",
-  "Detecting items that haven't been touched since the last president...",
-  "Cataloguing your commitment issues (the stuff kind)...",
-  "Generating absurdly hostile sector designations...",
-  "Assigning blame to inanimate objects...",
-  "Judging your organizational skills. Score: concerning...",
-  "Calculating the dust-to-hope ratio...",
-  "Almost done. The AI needed a moment to process what it saw...",
-  "Finalizing your intervention parameters...",
+  "Assessing the damage...",
+  "Questioning your life choices...",
+  "Counting every single item. Yes, all of them...",
+  "Identifying zones of maximum chaos...",
+  "Calculating how long this took to get this bad...",
+  "Mapping ergonomic hazards and moral failures...",
+  "Running feng shui violation analysis...",
+  "Detecting items that spark zero joy...",
+  "Building full inventory manifest...",
+  "Generating hostile sector designations...",
+  "Arming target manifest...",
+  "Almost done. Not impressed so far.",
+  "Finalizing operation parameters...",
 ];
 
 export const BOOT_MESSAGES = [

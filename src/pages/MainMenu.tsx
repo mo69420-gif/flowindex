@@ -26,8 +26,22 @@ export default function MainMenu() {
   const log = !scanDone
     ? "Scan your room. That's the only way this starts."
     : allClear
-    ? 'ALL SECTORS CLEARED. RESCAN FOR A NEW OP.'
+    ? 'ALL SECTORS CLEARED. SUBMIT FINAL REVIEW OR RESCAN.'
     : `Stage ${done + 1} of ${total} active. Hit SECTOR MAP.`;
+
+  // v4.4: Rescan only shows as deliberate choice after op complete or if not scanned
+  // During active op, show "CONTINUE CURRENT OP — SECTOR MAP" instead
+  const showScanButton = !scanDone || allClear;
+  const scanLabel = !scanDone ? 'SCAN ROOM — START HERE' : 'RESCAN ROOM';
+
+  const handleScanClick = () => {
+    // Show explainer on first scan if not seen
+    if (!state.seenExplainer) {
+      navigate('/explainer');
+    } else {
+      navigate('/scan');
+    }
+  };
 
   return (
     <TerminalLayout title="ROOT" syslog={log}>
@@ -36,9 +50,11 @@ export default function MainMenu() {
           MAIN MENU // {state.username}
         </div>
         <div className="flex flex-col gap-1.5">
-          <TerminalButton onClick={() => navigate('/scan')}>
-            {'>'} {scanDone ? 'RESCAN ROOM' : 'SCAN ROOM — START HERE'}
-          </TerminalButton>
+          {showScanButton && (
+            <TerminalButton onClick={handleScanClick}>
+              {'>'} {scanLabel}
+            </TerminalButton>
+          )}
           <TerminalButton
             variant={!scanDone ? 'locked' : undefined}
             disabled={!scanDone}
@@ -49,7 +65,7 @@ export default function MainMenu() {
           <TerminalButton
             onClick={() => navigate('/scenarios')}
           >
-            {'>'} SCENARIOS
+            {'>'} SCENARIOS + OPTIONS
           </TerminalButton>
         </div>
       </div>

@@ -31,13 +31,19 @@ export default function Scan() {
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const abortRef = useRef(false);
 
+  // v4.4: Redirect to explainer if not seen
+  useEffect(() => {
+    if (!state.seenExplainer) {
+      navigate('/explainer');
+    }
+  }, []);
+
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
   const directives = aiDirectives.length > 0 ? aiDirectives : state.directives;
 
-  // Use custom AI-generated loading lines if available, fallback to static
   const activeLoadingLines = customLoadingLines.length > 0 ? customLoadingLines
     : state.loadingLines.length > 0 ? state.loadingLines
     : LOADING_LINES;
@@ -273,7 +279,7 @@ export default function Scan() {
           ⚠ PANORAMIC PHOTOS PRODUCE SIGNIFICANTLY BETTER RESULTS
         </div>
         <div className="text-muted-foreground text-[10px] mb-2 font-body">
-          The OS analyzes it and tells you exactly what follow-up shots it needs.
+          The OS analyzes it and tells you exactly what follow-up shots it needs. Must be a real room.
         </div>
       </div>
 

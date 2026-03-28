@@ -14,11 +14,12 @@ export default function Scenarios() {
   const totalTargets = history.reduce((a, h) => a + h.targetsCompleted, 0);
 
   // Current scenario info
-  const { sectors, sectorOrder, operationName, completedTargets, trash, loot } = state;
+  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, sectorPenalties } = state;
   const curTotal = sectorOrder.reduce((a, k) => a + (sectors[k]?.targets.length ?? 0), 0);
   const curDone = completedTargets.length;
   const curPct = curTotal > 0 ? Math.round((curDone / curTotal) * 100) : 0;
   const stagesDone = sectorOrder.filter(k => sectorCleared(state, k)).length;
+  const totalPenalties = Object.values(sectorPenalties).reduce((a, b) => a + b, 0);
 
   const formatDate = (iso: string) => {
     try {
@@ -37,12 +38,12 @@ export default function Scenarios() {
 
   const handleHardReset = () => {
     dispatch({ type: 'HARD_RESET' });
-    navigate('/');
+    navigate('/menu');
   };
 
   return (
     <TerminalLayout
-      title="SCENARIOS"
+      title="SCENARIOS + OPTIONS"
       syslog={totalOps === 0 && !state.scanDone ? 'No operations on record. Scan a room first.' : `${totalOps} operation(s) logged. ${totalTargets} total targets neutralized.`}
     >
       {/* Current scenario */}
@@ -56,8 +57,11 @@ export default function Scenarios() {
             <StatRow label="OPERATION" value={operationName || 'UNKNOWN'} />
             <StatRow label="TARGETS DONE" value={`${curDone}/${curTotal} (${curPct}%)`} />
             <StatRow label="STAGES CLEARED" value={`${stagesDone}/${sectorOrder.length}`} />
-            <StatRow label="PURGED" value={String(trash)} />
-            <StatRow label="CLAIMED" value={String(loot)} />
+            <StatRow label="PURGED" value={`${trash} PTS`} />
+            <StatRow label="CLAIMED" value={`${loot} PTS`} />
+            {totalPenalties > 0 && (
+              <StatRow label="PENALTIES" value={`${totalPenalties} WRONG PHOTOS`} />
+            )}
             <StatRow label="SYS_MOOD" value={state.sysMood} />
           </div>
         </div>
@@ -71,8 +75,8 @@ export default function Scenarios() {
         <div className="space-y-1">
           <StatRow label="OPERATIONS" value={String(totalOps)} />
           <StatRow label="TARGETS HIT" value={String(totalTargets)} />
-          <StatRow label="TOTAL PURGED" value={String(totalTrash)} />
-          <StatRow label="TOTAL CLAIMED" value={String(totalLoot)} />
+          <StatRow label="TOTAL PURGED" value={`${totalTrash} PTS`} />
+          <StatRow label="TOTAL CLAIMED" value={`${totalLoot} PTS`} />
         </div>
       </div>
 
@@ -93,11 +97,12 @@ export default function Scenarios() {
               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[11px]">
                 <StatRow label="SECTORS" value={`${record.sectorsCleared}/${record.sectors}`} small />
                 <StatRow label="TARGETS" value={`${record.targetsCompleted}/${record.targets}`} small />
-                <StatRow label="PURGED" value={String(record.trash)} small />
-                <StatRow label="CLAIMED" value={String(record.loot)} small />
+                <StatRow label="PURGED" value={`${record.trash}`} small />
+                <StatRow label="CLAIMED" value={`${record.loot}`} small />
               </div>
-              <div className="mt-1.5 text-[10px] text-muted-foreground">
-                OPERATOR: {record.username}
+              <div className="mt-1.5 text-[10px] text-muted-foreground flex justify-between">
+                <span>OPERATOR: {record.username}</span>
+                {record.mood && <span className="text-destructive">{record.mood}</span>}
               </div>
             </div>
           ))}
@@ -112,6 +117,18 @@ export default function Scenarios() {
           </div>
         </div>
       )}
+
+      {/* Options */}
+      <div className="border border-border bg-muted p-3 mb-3">
+        <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
+          OPTIONS
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <TerminalButton onClick={() => navigate('/explainer')}>
+            {'>'} VIEW SYSTEM BRIEFING
+          </TerminalButton>
+        </div>
+      </div>
 
       {/* Danger Zone */}
       <div className="border border-destructive/20 bg-muted p-3 mb-3">

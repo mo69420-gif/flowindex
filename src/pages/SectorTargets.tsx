@@ -18,21 +18,7 @@ export default function SectorTargets() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const sector = key ? state.sectors[key] : null;
-  if (!sector || !key) {
-    navigate('/sectors');
-    return null;
-  }
-
-  const allDone = sectorCleared(state, key);
-  const doneCount = sector.targets.filter(t => state.completedTargets.includes(t.id)).length;
-  const penalties = state.sectorPenalties[key] || 0;
-
-  // Timer
-  const started = state.sectorStarted[key];
-  let elapsed: number | null = null;
-  if (started) {
-    elapsed = Math.floor((Date.now() - new Date(started).getTime()) / 60000);
-  }
+  const allDone = key ? sectorCleared(state, key) : false;
 
   // Load attack suggestion (v4.4: moved here from SectorDetail)
   useEffect(() => {

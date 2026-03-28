@@ -10,6 +10,7 @@ import SectorMap from "./pages/SectorMap";
 import SectorDetail from "./pages/SectorDetail";
 import SectorTargets from "./pages/SectorTargets";
 import OperationReview from "./pages/OperationReview";
+import SystemExplainer from "./pages/SystemExplainer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/new-user" element={<Boot />} />
           <Route path="/menu" element={<MainMenu />} />
           <Route path="/scan" element={<Scan />} />
+          <Route path="/explainer" element={<SystemExplainer />} />
           <Route path="/scenarios" element={<Scenarios />} />
           <Route path="/briefing" element={<MissionBriefing />} />
           <Route path="/sectors" element={<SectorMap />} />

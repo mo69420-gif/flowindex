@@ -16,8 +16,10 @@ export default function SectorMap() {
   const currentKey = getCurrentStage(state);
   const doneCount = sectorOrder.filter(k => sectorCleared(state, k)).length;
   const allConfirmed = sectorOrder.length > 0 && sectorOrder.every(k => state.confirmedSectors.includes(k));
+  const allCleared = sectorOrder.length > 0 && sectorOrder.every(k => sectorCleared(state, k));
+
   return (
-    <TerminalLayout title="SECTOR MAP" syslog={`${doneCount}/${sectorOrder.length} sectors cleared.`}>
+    <TerminalLayout title="SECTOR MAP" syslog={allCleared && !allConfirmed ? 'All sectors cleared. Confirm remaining sectors.' : `${doneCount}/${sectorOrder.length} sectors cleared.`}>
       <div className="border border-border bg-muted p-3 mb-3.5">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
           {state.operationName}
@@ -31,15 +33,27 @@ export default function SectorMap() {
             const s = sectors[key];
             if (!s) return null;
             const cleared = sectorCleared(state, key);
+            const confirmed = state.confirmedSectors.includes(key);
             const isCurrent = key === currentKey;
             const isLocked = !cleared && !isCurrent;
 
-            if (cleared) {
+            if (cleared && confirmed) {
               return (
                 <TerminalButton key={key} variant="cleared" onClick={() => navigate(`/sector/${key}`)}>
-                  ✓ {s.name}
+                  ✓ S{idx + 1}: {s.name}
                   <span className="float-right text-[10px] border border-primary/30 text-primary/50 px-1.5 py-0.5">
                     CLEARED
+                  </span>
+                </TerminalButton>
+              );
+            }
+            if (cleared && !confirmed) {
+              // Cleared but not confirmed — needs photo
+              return (
+                <TerminalButton key={key} onClick={() => navigate(`/sector/${key}/targets`)}>
+                  {'>'} S{idx + 1}: {s.name}
+                  <span className="float-right text-[10px] border border-accent text-accent px-1.5 py-0.5">
+                    CONFIRM
                   </span>
                 </TerminalButton>
               );
@@ -47,7 +61,7 @@ export default function SectorMap() {
             if (isLocked) {
               return (
                 <TerminalButton key={key} variant="locked">
-                  ◻ {s.name}
+                  ◻ S{idx + 1}: ████████
                   <span className="float-right text-[10px] border border-border/30 text-muted-foreground/30 px-1.5 py-0.5">
                     LOCKED
                   </span>
@@ -56,9 +70,9 @@ export default function SectorMap() {
             }
             return (
               <TerminalButton key={key} onClick={() => navigate(`/sector/${key}`)}>
-                {'>'} {s.name}
+                {'>'} S{idx + 1}: {s.name}
                 <span className="float-right text-[10px] border border-primary text-primary px-1.5 py-0.5">
-                  ACTIVE
+                  ACTIVE ~{s.timeEstimate}min
                 </span>
               </TerminalButton>
             );
@@ -66,10 +80,10 @@ export default function SectorMap() {
         </div>
       </div>
 
-      {/* Operation Review button when all confirmed */}
+      {/* Final review button when all confirmed */}
       {allConfirmed && (
         <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
-          {'>'} OPERATION COMPLETE — SUBMIT FINAL REVIEW
+          {'>'} ALL SECTORS CLEAR — SUBMIT FINAL REVIEW
         </TerminalButton>
       )}
 

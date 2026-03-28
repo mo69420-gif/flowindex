@@ -19,10 +19,11 @@ export default function OperationReview() {
     verdict: string;
   } | null>(null);
 
-  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, username } = state;
+  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, username, sectorPenalties } = state;
   const totalTargets = sectorOrder.reduce((a, k) => a + (sectors[k]?.targets.length ?? 0), 0);
   const sectorsCleared = sectorOrder.filter(k => sectorCleared(state, k)).length;
   const totalEst = sectorOrder.reduce((a, k) => a + (sectors[k]?.timeEstimate ?? 0), 0);
+  const totalPenalties = Object.values(sectorPenalties).reduce((a, b) => a + b, 0);
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -51,6 +52,7 @@ export default function OperationReview() {
             trash,
             loot,
             totalEst,
+            penalties: totalPenalties,
           },
         },
       });
@@ -91,6 +93,16 @@ export default function OperationReview() {
     );
   };
 
+  const moodColor = (mood: string) => {
+    if (['BEGRUDGINGLY PROUD', 'MILDLY IMPRESSED', 'MAXIMUM RESPECT UNLOCKED'].some(m => mood.includes(m))) {
+      return 'text-primary';
+    }
+    if (['HOSTILE BUT HELPFUL', 'JUDGING YOU HEAVILY'].some(m => mood.includes(m))) {
+      return 'text-destructive';
+    }
+    return 'text-accent';
+  };
+
   return (
     <TerminalLayout title="FINAL REVIEW" syslog={`${operationName} — final assessment pending.`}>
       {/* Op stats summary */}
@@ -109,6 +121,12 @@ export default function OperationReview() {
           <span className="text-foreground text-right">{trash}</span>
           <span className="text-muted-foreground">CLAIMED</span>
           <span className="text-foreground text-right">{loot}</span>
+          {totalPenalties > 0 && (
+            <>
+              <span className="text-muted-foreground">PENALTIES</span>
+              <span className="text-destructive text-right">{totalPenalties} WRONG PHOTOS</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -119,7 +137,8 @@ export default function OperationReview() {
           <div className="text-muted-foreground text-[11px] font-body mb-3 leading-relaxed">
             Take a FINAL panoramic of the entire space.{'\n'}
             Same sweep as the initial panoramic. Show the full space.{'\n'}
-            This is where mood is determined. Don't cheat.
+            This is where mood is determined. Don't cheat.{'\n'}
+            Must be a real room. Memes and selfies will be rejected.
           </div>
 
           {!photo && (
@@ -161,19 +180,40 @@ export default function OperationReview() {
         </div>
       )}
 
-      {/* Result */}
+      {/* Result — Op Complete screen */}
       {reviewState === 'result' && result && (
         <>
           <div className="border border-primary bg-muted p-3 mb-3">
             <div className="text-primary text-[13px] tracking-[2px] border-b border-border pb-1.5 mb-2">
               OPERATION COMPLETE
             </div>
+            <div className="text-muted-foreground text-[11px]">
+              {operationName} // {username || 'OPERATOR'}
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="border border-border bg-muted p-3 mb-3">
+            <div className="grid grid-cols-2 gap-y-1 text-xs">
+              <span className="text-muted-foreground">TARGETS</span>
+              <span className="text-primary text-right">{completedTargets.length}/{totalTargets} CLEARED</span>
+              <span className="text-muted-foreground">PURGED</span>
+              <span className="text-primary text-right">{trash} PTS</span>
+              <span className="text-muted-foreground">CLAIMED</span>
+              <span className="text-primary text-right">{loot} PTS</span>
+              {totalPenalties > 0 && (
+                <>
+                  <span className="text-muted-foreground">PENALTIES</span>
+                  <span className="text-destructive text-right">{totalPenalties} WRONG PHOTOS</span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Final Mood */}
           <div className="border border-border bg-muted p-3 mb-3">
             <div className="text-primary text-[11px] tracking-widest mb-2">FINAL MOOD</div>
-            <div className="text-destructive text-sm tracking-widest font-display">
+            <div className={`text-sm tracking-widest font-display ${moodColor(result.mood)}`}>
               {result.mood}
             </div>
           </div>
@@ -200,7 +240,7 @@ export default function OperationReview() {
             </div>
           </div>
 
-          <TerminalButton variant="confirm" onClick={handleFinish}>
+          <TerminalButton variant="deploy" onClick={handleFinish}>
             {'>'} BACK TO MAIN MENU
           </TerminalButton>
         </>

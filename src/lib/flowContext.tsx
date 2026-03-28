@@ -20,6 +20,8 @@ const initialState: FlowState = {
   sectorStarted: {},
   scenarioHistory: [],
   loadingLines: [],
+  seenExplainer: false,
+  sectorPenalties: {},
 };
 
 function flowReducer(state: FlowState, action: FlowAction): FlowState {
@@ -27,7 +29,11 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case 'SET_USERNAME':
       return { ...state, username: action.payload, sysLogs: [`OPERATOR ${action.payload} IDENTIFIED.`, "PROFILE LOADED.", "AWAITING ORDERS."] };
     case 'ADD_USER':
-      return { ...state, allUsers: state.allUsers.includes(action.payload) ? state.allUsers : [...state.allUsers, action.payload] };
+      return {
+        ...state,
+        allUsers: state.allUsers.includes(action.payload) ? state.allUsers : [...state.allUsers, action.payload],
+        seenExplainer: false, // New users see the explainer
+      };
     case 'SET_LOGS':
       return { ...state, sysLogs: action.payload };
     case 'SET_DIRECTIVES':
@@ -54,6 +60,8 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
           trash: state.trash,
           loot: state.loot,
           username: state.username || 'OPERATOR',
+          mood: state.sysMood,
+          penalties: Object.values(state.sectorPenalties).reduce((a, b) => a + b, 0),
         };
         history = [...history, record];
       }
@@ -67,9 +75,13 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         targetActions: {},
         confirmedSectors: [],
         sectorStarted: {},
+        sectorPenalties: {},
         directives: [],
         scenarios: state.scenarios + 1,
         scenarioHistory: history,
+        sysMood: "HOSTILE BUT HELPFUL",
+        loot: 0,
+        trash: 0,
         sysLogs: [
           `${action.payload.sectorOrder.length} SECTORS GENERATED. ${totalTargets} TARGETS ARMED.`,
           `EST. TOTAL: ${totalEst} MIN.`,
@@ -93,6 +105,8 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         trash: state.trash,
         loot: state.loot,
         username: state.username || 'OPERATOR',
+        mood: state.sysMood,
+        penalties: Object.values(state.sectorPenalties).reduce((a, b) => a + b, 0),
       };
       return { ...state, scenarioHistory: [...state.scenarioHistory, record] };
     }
@@ -107,7 +121,6 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         targetActions: { ...state.targetActions, [targetId]: act },
         trash: newTrash,
         loot: newLoot,
-        // Mood does NOT change here — only on final review
       };
     }
     case 'CONFIRM_SECTOR':
@@ -116,6 +129,17 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
       return { ...state, sectorStarted: { ...state.sectorStarted, [action.payload]: new Date().toISOString() } };
     case 'SET_MOOD':
       return { ...state, sysMood: action.payload };
+    case 'SET_SEEN_EXPLAINER':
+      return { ...state, seenExplainer: true };
+    case 'ADD_PENALTY': {
+      const { sectorKey, points } = action.payload;
+      const newPenalties = { ...state.sectorPenalties, [sectorKey]: (state.sectorPenalties[sectorKey] || 0) + 1 };
+      return {
+        ...state,
+        sectorPenalties: newPenalties,
+        trash: Math.max(0, state.trash - points),
+      };
+    }
     case 'RESET_SCENARIO':
       return {
         ...state,
@@ -123,13 +147,22 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         targetActions: {},
         confirmedSectors: [],
         sectorStarted: {},
+        sectorPenalties: {},
         loot: 0,
         trash: 0,
         sysLogs: ["SCENARIO RESET.", "SECTOR DATA PRESERVED.", "TARGETS RE-ARMED."],
       };
     case 'HARD_RESET': {
       const users = state.allUsers;
-      return { ...initialState, allUsers: users };
+      const history = state.scenarioHistory; // Preserve history
+      const username = state.username;
+      return {
+        ...initialState,
+        allUsers: users,
+        username: username,
+        scenarioHistory: history,
+        sysLogs: ["HARD RESET COMPLETE.", "SCENARIO HISTORY PRESERVED.", "BACK TO ZERO."],
+      };
     }
     case 'RESET':
       return { ...initialState };

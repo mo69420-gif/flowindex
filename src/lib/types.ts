@@ -9,8 +9,8 @@ export interface Target {
   label: string;
   tier: 1 | 2 | 3;
   why: string;
-  trash: number;
-  loot: number;
+  trash: number; // effort — how hard to deal with (rewards PURGE)
+  loot: number;  // value — worth keeping (rewards CLAIM)
 }
 
 export interface Sector {
@@ -25,6 +25,7 @@ export interface Sector {
   finalAnalysis: string;
   inventory: InventoryItem[];
   targets: Target[];
+  attackSuggestion?: string;
 }
 
 export interface Directive {
@@ -43,6 +44,8 @@ export interface ScenarioRecord {
   trash: number;
   loot: number;
   username: string;
+  mood?: string;
+  penalties?: number;
 }
 
 export interface FlowState {
@@ -64,6 +67,8 @@ export interface FlowState {
   sectorStarted: Record<string, string>;
   scenarioHistory: ScenarioRecord[];
   loadingLines: string[];
+  seenExplainer: boolean;
+  sectorPenalties: Record<string, number>;
 }
 
 export type FlowAction =
@@ -80,4 +85,6 @@ export type FlowAction =
   | { type: 'ARCHIVE_SCENARIO' }
   | { type: 'RESET_SCENARIO' }
   | { type: 'HARD_RESET' }
-  | { type: 'RESET' };
+  | { type: 'RESET' }
+  | { type: 'SET_SEEN_EXPLAINER' }
+  | { type: 'ADD_PENALTY'; payload: { sectorKey: string; points: number } };

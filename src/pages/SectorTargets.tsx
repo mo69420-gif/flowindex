@@ -19,6 +19,10 @@ export default function SectorTargets() {
 
   const sector = key ? state.sectors[key] : null;
   const allDone = key ? sectorCleared(state, key) : false;
+  const doneCount = sector ? sector.targets.filter(t => state.completedTargets.includes(t.id)).length : 0;
+  const penalties = key ? (state.sectorPenalties[key] || 0) : 0;
+  const started = key ? state.sectorStarted[key] : undefined;
+  const elapsed = started ? Math.floor((Date.now() - new Date(started).getTime()) / 60000) : null;
 
   // Load attack suggestion (v4.4: moved here from SectorDetail)
   useEffect(() => {

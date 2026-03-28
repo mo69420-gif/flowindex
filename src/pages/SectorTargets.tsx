@@ -53,6 +53,11 @@ export default function SectorTargets() {
     });
   }, [key]);
 
+  if (!sector || !key) {
+    navigate('/sectors');
+    return null;
+  }
+
   const handleAction = (targetId: string, action: string) => {
     const target = sector.targets.find(t => t.id === targetId);
     if (!target) return;

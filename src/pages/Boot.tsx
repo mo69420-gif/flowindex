@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useFlow } from '@/lib/flowContext';
 import { BOOT_MESSAGES } from '@/lib/mockData';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,9 +9,18 @@ import { TerminalButton } from '@/components/TerminalButton';
 export default function Boot() {
   const { state, dispatch } = useFlow();
   const navigate = useNavigate();
+  const location = useLocation();
   const [name, setName] = useState('');
   const [bootMsg, setBootMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showNewUser, setShowNewUser] = useState(false);
+
+  // If navigated to /new-user, show new user form
+  useEffect(() => {
+    if (location.pathname === '/new-user') {
+      setShowNewUser(true);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,80 +48,92 @@ export default function Boot() {
 
   const allUsers = state.allUsers;
 
-  if (allUsers.length > 0) {
+  // New user form (from "NEW OPERATOR" button or /new-user route)
+  if (showNewUser || (allUsers.length === 0)) {
     return (
-      <TerminalLayout title="BOOT" syslog="Select your profile or create a new one." showMatrix={false}>
+      <TerminalLayout title="FIRST BOOT" syslog="The OS is waiting." showMatrix={false}>
         <div className="border border-border bg-muted p-3 mb-3.5">
           <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
-            SELECT OPERATOR
+            {allUsers.length > 0 ? 'NEW OPERATOR' : 'FIRST BOOT // OPERATOR ID'}
           </div>
-          <div className="text-muted-foreground text-xs mb-3">Who's running this op?</div>
-          <div className="flex flex-col gap-1.5">
-            {allUsers.map(u => (
-              <TerminalButton
-                key={u}
-                onClick={() => {
-                  dispatch({ type: 'SET_USERNAME', payload: u });
-                  navigate('/menu');
-                }}
-              >
-                {'>'} {u}
-              </TerminalButton>
-            ))}
+          <div className="text-muted-foreground text-xs mb-4 font-body leading-relaxed">
+            {loading ? (
+              <span className="animate-pulse">INITIALIZING BOOT SEQUENCE...</span>
+            ) : (
+              bootMsg
+            )}
+          </div>
+          <input
+            type="text"
+            className="w-full bg-muted border border-border text-primary font-display text-base px-3.5 py-3 mb-3 tracking-[2px] text-center uppercase focus:outline-none focus:border-primary"
+            placeholder="ENTER CALLSIGN"
+            value={name}
+            onChange={e => setName(e.target.value.toUpperCase())}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && name.trim()) {
+                dispatch({ type: 'ADD_USER', payload: name.trim() });
+                dispatch({ type: 'SET_USERNAME', payload: name.trim() });
+                navigate('/menu');
+              }
+            }}
+            autoFocus
+          />
+          <TerminalButton
+            variant="confirm"
+            disabled={!name.trim()}
+            onClick={() => {
+              dispatch({ type: 'ADD_USER', payload: name.trim() });
+              dispatch({ type: 'SET_USERNAME', payload: name.trim() });
+              navigate('/menu');
+            }}
+          >
+            {'>'} INITIALIZE OPERATOR
+          </TerminalButton>
+          {allUsers.length > 0 && (
             <TerminalButton
               variant="back"
               onClick={() => {
-                dispatch({ type: 'SET_USERNAME', payload: '' });
-                navigate('/new-user');
+                setShowNewUser(false);
+                navigate('/');
               }}
             >
-              {'>'} NEW OPERATOR
+              {'<'} BACK TO OPERATOR SELECT
             </TerminalButton>
-          </div>
+          )}
         </div>
       </TerminalLayout>
     );
   }
 
+  // Operator select (existing users)
   return (
-    <TerminalLayout title="FIRST BOOT" syslog="The OS is waiting." showMatrix={false}>
+    <TerminalLayout title="BOOT" syslog="Select your profile or create a new one." showMatrix={false}>
       <div className="border border-border bg-muted p-3 mb-3.5">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
-          FIRST BOOT // OPERATOR ID
+          SELECT OPERATOR
         </div>
-        <div className="text-muted-foreground text-xs mb-4 font-body leading-relaxed">
-          {loading ? (
-            <span className="animate-pulse">INITIALIZING BOOT SEQUENCE...</span>
-          ) : (
-            bootMsg
-          )}
+        <div className="text-muted-foreground text-xs mb-3">Who's running this op?</div>
+        <div className="flex flex-col gap-1.5">
+          {allUsers.map(u => (
+            <TerminalButton
+              key={u}
+              onClick={() => {
+                dispatch({ type: 'SET_USERNAME', payload: u });
+                navigate('/menu');
+              }}
+            >
+              {'>'} {u}
+            </TerminalButton>
+          ))}
+          <TerminalButton
+            variant="back"
+            onClick={() => {
+              setShowNewUser(true);
+            }}
+          >
+            {'>'} NEW OPERATOR
+          </TerminalButton>
         </div>
-        <input
-          type="text"
-          className="w-full bg-muted border border-border text-primary font-display text-base px-3.5 py-3 mb-3 tracking-[2px] text-center uppercase focus:outline-none focus:border-primary"
-          placeholder="ENTER CALLSIGN"
-          value={name}
-          onChange={e => setName(e.target.value.toUpperCase())}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && name.trim()) {
-              dispatch({ type: 'ADD_USER', payload: name.trim() });
-              dispatch({ type: 'SET_USERNAME', payload: name.trim() });
-              navigate('/menu');
-            }
-          }}
-          autoFocus
-        />
-        <TerminalButton
-          variant="confirm"
-          disabled={!name.trim()}
-          onClick={() => {
-            dispatch({ type: 'ADD_USER', payload: name.trim() });
-            dispatch({ type: 'SET_USERNAME', payload: name.trim() });
-            navigate('/menu');
-          }}
-        >
-          {'>'} INITIALIZE OPERATOR
-        </TerminalButton>
       </div>
     </TerminalLayout>
   );

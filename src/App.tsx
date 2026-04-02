@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { FlowProvider } from "@/lib/flowContext";
 import Boot from "./pages/Boot";
 import MainMenu from "./pages/MainMenu";
 import Scan from "./pages/Scan";
 import Scenarios from "./pages/Scenarios";
+import Options from "./pages/Options";
 import MissionBriefing from "./pages/MissionBriefing";
 import SectorMap from "./pages/SectorMap";
 import SectorDetail from "./pages/SectorDetail";
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/scan" element={<Scan />} />
           <Route path="/explainer" element={<SystemExplainer />} />
           <Route path="/scenarios" element={<Scenarios />} />
+          <Route path="/options" element={<Options />} />
           <Route path="/briefing" element={<MissionBriefing />} />
           <Route path="/sectors" element={<SectorMap />} />
           <Route path="/sector/:key" element={<SectorDetail />} />

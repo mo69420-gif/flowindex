@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import React from 'react';
+import { playSound, type SoundType } from '@/hooks/useSound';
 
 const terminalButtonVariants = cva(
   "block w-full bg-transparent font-display text-left cursor-pointer transition-colors duration-100 tracking-wide disabled:opacity-25 disabled:cursor-not-allowed disabled:pointer-events-none",
@@ -26,14 +27,38 @@ const terminalButtonVariants = cva(
   }
 );
 
+const variantSoundMap: Record<string, SoundType> = {
+  eliminate: 'purge',
+  salvage: 'claim',
+  relocate: 'exile',
+  deploy: 'deploy',
+  confirm: 'deploy',
+  scan: 'deploy',
+};
+
 interface TerminalButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof terminalButtonVariants> {}
 
 const TerminalButton = React.forwardRef<HTMLButtonElement, TerminalButtonProps>(
-  ({ className, variant, ...props }, ref) => (
-    <button ref={ref} className={cn(terminalButtonVariants({ variant, className }))} {...props} />
-  )
+  ({ className, variant, onClick, ...props }, ref) => {
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      const sound = variantSoundMap[variant || 'default'] || 'default';
+      if (variant !== 'locked' && variant !== 'cleared') {
+        playSound(sound);
+      }
+      onClick?.(e);
+    };
+
+    return (
+      <button
+        ref={ref}
+        className={cn(terminalButtonVariants({ variant, className }))}
+        onClick={handleClick}
+        {...props}
+      />
+    );
+  }
 );
 TerminalButton.displayName = 'TerminalButton';
 

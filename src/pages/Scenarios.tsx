@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom';
-import { useFlow, sectorCleared } from '@/lib/flowContext';
+import { useFlow } from '@/lib/flowContext';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
 export default function Scenarios() {
-  const { state, dispatch } = useFlow();
+  const { state } = useFlow();
   const navigate = useNavigate();
   const history = [...state.scenarioHistory].reverse();
 
@@ -12,14 +12,6 @@ export default function Scenarios() {
   const totalTrash = history.reduce((a, h) => a + h.trash, 0);
   const totalLoot = history.reduce((a, h) => a + h.loot, 0);
   const totalTargets = history.reduce((a, h) => a + h.targetsCompleted, 0);
-
-  // Current scenario info
-  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, sectorPenalties } = state;
-  const curTotal = sectorOrder.reduce((a, k) => a + (sectors[k]?.targets.length ?? 0), 0);
-  const curDone = completedTargets.length;
-  const curPct = curTotal > 0 ? Math.round((curDone / curTotal) * 100) : 0;
-  const stagesDone = sectorOrder.filter(k => sectorCleared(state, k)).length;
-  const totalPenalties = Object.values(sectorPenalties).reduce((a, b) => a + b, 0);
 
   const formatDate = (iso: string) => {
     try {
@@ -29,44 +21,11 @@ export default function Scenarios() {
     } catch { return iso; }
   };
 
-  const handleResetScenario = () => {
-    if (state.sectors && sectorOrder.length > 0) {
-      dispatch({ type: 'ARCHIVE_SCENARIO' });
-    }
-    dispatch({ type: 'RESET_SCENARIO' });
-  };
-
-  const handleHardReset = () => {
-    dispatch({ type: 'HARD_RESET' });
-    navigate('/menu');
-  };
-
   return (
     <TerminalLayout
-      title="SCENARIOS + OPTIONS"
-      syslog={totalOps === 0 && !state.scanDone ? 'No operations on record. Scan a room first.' : `${totalOps} operation(s) logged. ${totalTargets} total targets neutralized.`}
+      title="SCENARIOS"
+      syslog={totalOps === 0 ? 'No operations on record.' : `${totalOps} operation(s) logged. ${totalTargets} total targets neutralized.`}
     >
-      {/* Current scenario */}
-      {state.scanDone && sectorOrder.length > 0 && (
-        <div className="border border-border bg-muted p-3 mb-3.5">
-          <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
-            CURRENT SCENARIO // #{state.scenarios}
-          </div>
-          <div className="space-y-1">
-            <StatRow label="OPERATOR" value={state.username || 'OPERATOR'} />
-            <StatRow label="OPERATION" value={operationName || 'UNKNOWN'} />
-            <StatRow label="TARGETS DONE" value={`${curDone}/${curTotal} (${curPct}%)`} />
-            <StatRow label="STAGES CLEARED" value={`${stagesDone}/${sectorOrder.length}`} />
-            <StatRow label="PURGED" value={`${trash} PTS`} />
-            <StatRow label="CLAIMED" value={`${loot} PTS`} />
-            {totalPenalties > 0 && (
-              <StatRow label="PENALTIES" value={`${totalPenalties} WRONG PHOTOS`} />
-            )}
-            <StatRow label="SYS_MOOD" value={state.sysMood} />
-          </div>
-        </div>
-      )}
-
       {/* Lifetime stats */}
       <div className="border border-border bg-muted p-3 mb-3.5">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
@@ -109,7 +68,7 @@ export default function Scenarios() {
         </div>
       )}
 
-      {history.length === 0 && !state.scanDone && (
+      {history.length === 0 && (
         <div className="border border-dashed border-border p-4 text-center mb-3.5">
           <div className="text-muted-foreground text-xs tracking-widest mb-1">NO RECORDS</div>
           <div className="text-muted-foreground text-[11px] font-body">
@@ -117,38 +76,6 @@ export default function Scenarios() {
           </div>
         </div>
       )}
-
-      {/* Options */}
-      <div className="border border-border bg-muted p-3 mb-3">
-        <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
-          OPTIONS
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <TerminalButton onClick={() => navigate('/explainer')}>
-            {'>'} VIEW SYSTEM BRIEFING
-          </TerminalButton>
-        </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="border border-destructive/20 bg-muted p-3 mb-3">
-        <div className="text-destructive tracking-widest text-[11px] border-b border-destructive/20 pb-1.5 mb-2">
-          DANGER ZONE
-        </div>
-        <div className="text-muted-foreground text-[10px] mb-3 font-body">
-          Hard reset lives here. Not on the main menu.
-        </div>
-        <div className="flex flex-col gap-1.5">
-          {state.scanDone && (
-            <TerminalButton variant="danger" onClick={handleResetScenario}>
-              {'>'} RESET CURRENT SCENARIO [KEEP HISTORY]
-            </TerminalButton>
-          )}
-          <TerminalButton variant="danger" onClick={handleHardReset}>
-            {'>'} HARD RESET [WIPE EVERYTHING]
-          </TerminalButton>
-        </div>
-      </div>
 
       <TerminalButton variant="back" onClick={() => navigate('/menu')}>
         {'<'} BACK TO MENU

@@ -16,26 +16,20 @@ export default function MainMenu() {
   const total = sectorOrder.length;
   const done = sectorOrder.filter(k => sectorCleared(state, k)).length;
   const allClear = done >= total && total > 0;
+  const allConfirmed = total > 0 && sectorOrder.every(k => state.confirmedSectors.includes(k));
 
-  const sectorLabel = !scanDone
-    ? ' — SCAN FIRST'
-    : allClear
-    ? ' [ALL CLEAR]'
-    : ` [STAGE ${done + 1}/${total}]`;
+  // Determine what to show
+  const opActive = scanDone && !allClear;
 
   const log = !scanDone
     ? "Scan your room. That's the only way this starts."
+    : allConfirmed
+    ? 'ALL SECTORS CLEARED AND CONFIRMED. SUBMIT FINAL REVIEW.'
     : allClear
-    ? 'ALL SECTORS CLEARED. SUBMIT FINAL REVIEW OR RESCAN.'
+    ? 'ALL SECTORS CLEARED. CONFIRM REMAINING OR SUBMIT REVIEW.'
     : `Stage ${done + 1} of ${total} active. Hit SECTOR MAP.`;
 
-  // v4.4: Rescan only shows as deliberate choice after op complete or if not scanned
-  // During active op, show "CONTINUE CURRENT OP — SECTOR MAP" instead
-  const showScanButton = !scanDone || allClear;
-  const scanLabel = !scanDone ? 'SCAN ROOM — START HERE' : 'RESCAN ROOM';
-
   const handleScanClick = () => {
-    // Show explainer on first scan if not seen
     if (!state.seenExplainer) {
       navigate('/explainer');
     } else {
@@ -50,22 +44,49 @@ export default function MainMenu() {
           MAIN MENU // {state.username}
         </div>
         <div className="flex flex-col gap-1.5">
-          {showScanButton && (
+          {/* Scan button: show when no scan or when all sectors confirmed (rescan) */}
+          {!scanDone && (
             <TerminalButton onClick={handleScanClick}>
-              {'>'} {scanLabel}
+              {'>'} SCAN ROOM — START HERE
             </TerminalButton>
           )}
-          <TerminalButton
-            variant={!scanDone ? 'locked' : undefined}
-            disabled={!scanDone}
-            onClick={() => navigate('/sectors')}
-          >
-            {'>'} SECTOR MAP{sectorLabel}
+
+          {/* During active op: show continue button, NOT scan */}
+          {opActive && (
+            <TerminalButton onClick={() => navigate('/sectors')}>
+              {'>'} CONTINUE OP — SECTOR MAP [STAGE {done + 1}/{total}]
+            </TerminalButton>
+          )}
+
+          {/* All clear: show rescan + final review */}
+          {allClear && (
+            <>
+              {allConfirmed && (
+                <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
+                  {'>'} SUBMIT FINAL REVIEW
+                </TerminalButton>
+              )}
+              <TerminalButton onClick={() => navigate('/sectors')}>
+                {'>'} SECTOR MAP [ALL CLEAR]
+              </TerminalButton>
+              <TerminalButton onClick={handleScanClick}>
+                {'>'} RESCAN ROOM
+              </TerminalButton>
+            </>
+          )}
+
+          {/* Sector map disabled before first scan */}
+          {!scanDone && (
+            <TerminalButton variant="locked" disabled>
+              {'>'} SECTOR MAP — SCAN FIRST
+            </TerminalButton>
+          )}
+
+          <TerminalButton onClick={() => navigate('/scenarios')}>
+            {'>'} SCENARIOS
           </TerminalButton>
-          <TerminalButton
-            onClick={() => navigate('/scenarios')}
-          >
-            {'>'} SCENARIOS + OPTIONS
+          <TerminalButton onClick={() => navigate('/options')}>
+            {'>'} OPTIONS
           </TerminalButton>
         </div>
       </div>

@@ -80,11 +80,20 @@ export default function SectorMap() {
         </div>
       </div>
 
-      {/* Final review button when all confirmed */}
-      {allConfirmed && (
+      {/* Final review button when all cleared */}
+      {allCleared && allConfirmed && (
         <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
           {'>'} ALL SECTORS CLEAR — SUBMIT FINAL REVIEW
         </TerminalButton>
+      )}
+
+      {allCleared && !allConfirmed && (
+        <div className="border border-accent bg-muted p-3 mt-3 text-center">
+          <div className="text-accent text-xs tracking-widest mb-1">ALL TARGETS DONE</div>
+          <div className="text-muted-foreground text-[11px] font-body">
+            Confirm remaining sectors with photos before final review.
+          </div>
+        </div>
       )}
 
       <TerminalButton variant="back" onClick={() => navigate('/menu')}>

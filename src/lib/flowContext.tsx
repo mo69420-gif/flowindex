@@ -153,13 +153,11 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         sysLogs: ["SCENARIO RESET.", "SECTOR DATA PRESERVED.", "TARGETS RE-ARMED."],
       };
     case 'HARD_RESET': {
-      const users = state.allUsers;
-      const history = state.scenarioHistory; // Preserve history
-      const username = state.username;
+      const history = state.scenarioHistory; // Preserve history only
       return {
         ...initialState,
-        allUsers: users,
-        username: username,
+        allUsers: [],
+        username: null,
         scenarioHistory: history,
         sysLogs: ["HARD RESET COMPLETE.", "SCENARIO HISTORY PRESERVED.", "BACK TO ZERO."],
       };

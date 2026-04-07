@@ -44,12 +44,16 @@ export default function Scenarios() {
         <div className="mb-3.5">
           <div className="text-primary tracking-widest text-[11px] mb-2">HISTORY // LAST 5 OPS</div>
           {history.slice(0, 5).map((record, i) => (
-            <div key={i} className="border border-border bg-muted p-3 mb-2.5">
+            <div
+              key={i}
+              className="border border-border bg-muted p-3 mb-2.5 cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => navigate(`/scenario/${i}`)}
+            >
               <div className="flex justify-between items-start mb-2">
                 <div className="text-accent text-xs tracking-widest leading-tight">
                   {record.operationName}
                 </div>
-                <div className="text-muted-foreground text-[10px] flex-shrink-0 ml-2">
+                <div className="text-foreground text-[10px] flex-shrink-0 ml-2">
                   {formatDate(record.date)}
                 </div>
               </div>
@@ -59,10 +63,11 @@ export default function Scenarios() {
                 <StatRow label="PURGED" value={`${record.trash}`} small />
                 <StatRow label="CLAIMED" value={`${record.loot}`} small />
               </div>
-              <div className="mt-1.5 text-[10px] text-muted-foreground flex justify-between">
+              <div className="mt-1.5 text-[10px] text-foreground flex justify-between">
                 <span>OPERATOR: {record.username}</span>
                 {record.mood && <span className="text-destructive">{record.mood}</span>}
               </div>
+              <div className="text-primary/40 text-[10px] mt-1 tracking-widest">TAP FOR DETAILS →</div>
             </div>
           ))}
         </div>

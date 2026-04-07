@@ -143,14 +143,19 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case 'RESET_SCENARIO':
       return {
         ...state,
+        scanDone: false,
+        sectors: {},
+        sectorOrder: [],
+        operationName: "",
         completedTargets: [],
         targetActions: {},
         confirmedSectors: [],
         sectorStarted: {},
         sectorPenalties: {},
+        directives: [],
         loot: 0,
         trash: 0,
-        sysLogs: ["SCENARIO RESET.", "SECTOR DATA PRESERVED.", "TARGETS RE-ARMED."],
+        sysLogs: ["SCENARIO WIPED.", "ALL SECTOR DATA CLEARED.", "SCAN ROOM TO START FRESH."],
       };
     case 'HARD_RESET': {
       const history = state.scenarioHistory; // Preserve history only

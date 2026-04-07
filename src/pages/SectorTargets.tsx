@@ -109,7 +109,7 @@ export default function SectorTargets() {
       setVerifyResult(data);
       setVerifyState('result');
     } catch {
-      setVerifyResult({ verified: true, tone: 'neutral', message: 'Verification unavailable — passing you through.' });
+      setVerifyResult({ verified: false, tone: 'hostile', message: 'VERIFICATION FAILED — system error. Retake and try again. No free passes.' });
       setVerifyState('result');
     }
   };

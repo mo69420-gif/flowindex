@@ -15,7 +15,7 @@
     --secondary: 220 100% 64%;
     --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 6%;
-    --muted-foreground: 0 0% 53%;
+    --muted-foreground: 0 0% 100%;
     --accent: 51 100% 50%;
     --accent-foreground: 0 0% 3%;
     --destructive: 16 100% 50%;
@@ -25,7 +25,7 @@
     --ring: 110 100% 54%;
     --radius: 0px;
     --terminal-orange: 33 100% 50%;
-    --terminal-dim: 0 0% 53%;
+    --terminal-dim: 0 0% 100%;
     --terminal-panel: 0 0% 6%;
   }
 }

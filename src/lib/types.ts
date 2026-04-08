@@ -34,6 +34,13 @@ export interface Directive {
   instruction: string;
 }
 
+export interface Leaderboard {
+  purged: number;
+  claimed: number;
+  scenarios: number;
+  penalties: number;
+}
+
 export interface ScenarioRecord {
   date: string;
   operationName: string;
@@ -46,6 +53,7 @@ export interface ScenarioRecord {
   username: string;
   mood?: string;
   penalties?: number;
+  timerBonuses?: Record<string, number>;
 }
 
 export interface FlowState {
@@ -69,6 +77,12 @@ export interface FlowState {
   loadingLines: string[];
   seenExplainer: boolean;
   sectorPenalties: Record<string, number>;
+  // v4.6 fields
+  opReviewed: boolean;
+  timerBonuses: Record<string, number>;
+  performanceMedian: number;
+  leaderboard: Leaderboard;
+  sectorBeforeRefs: Record<string, { b64?: string; mime?: string }>;
 }
 
 export type FlowAction =
@@ -84,7 +98,12 @@ export type FlowAction =
   | { type: 'START_SECTOR'; payload: string }
   | { type: 'ARCHIVE_SCENARIO' }
   | { type: 'RESET_SCENARIO' }
+  | { type: 'RESET_OS' }
+  | { type: 'FULL_RESET' }
   | { type: 'HARD_RESET' }
   | { type: 'RESET' }
   | { type: 'SET_SEEN_EXPLAINER' }
-  | { type: 'ADD_PENALTY'; payload: { sectorKey: string; points: number } };
+  | { type: 'ADD_PENALTY'; payload: { sectorKey: string; points: number } }
+  | { type: 'SET_OP_REVIEWED' }
+  | { type: 'APPLY_TIMER_BONUS'; payload: { sectorKey: string; bonus: number } }
+  | { type: 'CLEAR_SCENARIOS' };

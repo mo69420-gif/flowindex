@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useFlow, sectorCleared } from '@/lib/flowContext';
+import { useFlow, sectorCleared, TIMER_BEAT_BONUS, TIMER_MISS_PENALTY } from '@/lib/flowContext';
 import { supabase } from '@/integrations/supabase/client';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
@@ -23,11 +23,11 @@ export default function SectorTargets() {
   const penalties = key ? (state.sectorPenalties[key] || 0) : 0;
   const started = key ? state.sectorStarted[key] : undefined;
   const elapsed = started ? Math.floor((Date.now() - new Date(started).getTime()) / 60000) : null;
+  const timerBonus = key ? state.timerBonuses[key] : undefined;
 
-  // Load attack suggestion (v4.4: moved here from SectorDetail)
+  // Load attack suggestion
   useEffect(() => {
     if (!sector || !key || allDone) return;
-    // Use pre-generated suggestion from scan if available
     if (sector.attackSuggestion) {
       setAttackSuggestion(sector.attackSuggestion);
       return;
@@ -41,11 +41,8 @@ export default function SectorTargets() {
         sectorTargets: sector.targets.map(t => ({ label: t.label, tier: t.tier })),
       },
     }).then(({ data, error }) => {
-      if (!error && data?.suggestion) {
-        setAttackSuggestion(data.suggestion);
-      } else {
-        setAttackSuggestion("Clear Tier 1 targets first — they're blocking everything else. Work outward from the biggest obstruction. Don't stop once you start.");
-      }
+      if (!error && data?.suggestion) setAttackSuggestion(data.suggestion);
+      else setAttackSuggestion("Clear Tier 1 targets first — they're blocking everything else. Work outward from the biggest obstruction. Don't stop once you start.");
       setLoadingAttack(false);
     }).catch(() => {
       setAttackSuggestion("Clear Tier 1 targets first — they're blocking everything else. Work outward from the biggest obstruction. Don't stop once you start.");
@@ -74,7 +71,7 @@ export default function SectorTargets() {
     const reader = new FileReader();
     reader.onload = () => {
       setVerifyPhoto(reader.result as string);
-      setVerifyState('confirm'); // v4.4: "Are you sure?" step
+      setVerifyState('confirm');
     };
     reader.readAsDataURL(file);
   };
@@ -83,10 +80,14 @@ export default function SectorTargets() {
     if (!verifyPhoto) return;
     setVerifyState('verifying');
     try {
-      const sectorTargetContext = sector.targets.map(t => ({
-        label: t.label,
-        action: state.targetActions[t.id] || 'unknown',
-      }));
+      // Build tier breakdown for AI
+      const clearedTargets = sector.targets
+        .filter(t => state.completedTargets.includes(t.id))
+        .map(t => ({
+          label: t.label,
+          tier: t.tier,
+          action: state.targetActions[t.id] || 'unknown',
+        }));
 
       const { data, error } = await supabase.functions.invoke('analyze-room', {
         body: {
@@ -96,12 +97,11 @@ export default function SectorTargets() {
           sectorDesc: sector.desc,
           elapsedMin: elapsed,
           timeEstimate: sector.timeEstimate,
-          sectorTargets: sectorTargetContext,
+          sectorTargets: clearedTargets,
         },
       });
       if (error) throw error;
 
-      // v4.4: Apply penalty for wrong photo
       if (data && !data.verified) {
         dispatch({ type: 'ADD_PENALTY', payload: { sectorKey: key, points: 5 } });
       }
@@ -115,6 +115,11 @@ export default function SectorTargets() {
   };
 
   const handleConfirm = () => {
+    // Apply timer bonus/penalty
+    if (elapsed !== null && timerBonus === undefined) {
+      const bonus = elapsed <= sector.timeEstimate ? TIMER_BEAT_BONUS : -TIMER_MISS_PENALTY;
+      dispatch({ type: 'APPLY_TIMER_BONUS', payload: { sectorKey: key, bonus } });
+    }
     dispatch({ type: 'CONFIRM_SECTOR', payload: key });
     navigate('/sectors');
   };
@@ -126,9 +131,21 @@ export default function SectorTargets() {
     return '';
   };
 
+  // Timer display
+  const timerColor = elapsed === null ? '' :
+    elapsed > (sector.timeEstimate * 2) ? 'text-destructive' :
+    elapsed > sector.timeEstimate ? 'text-destructive' : 'text-primary';
+  const timerText = elapsed === null ? '' :
+    elapsed > (sector.timeEstimate * 2) ? `⚠ ${elapsed}min / ${sector.timeEstimate}min est. — WAY OVER. POINTS LOST.` :
+    elapsed > sector.timeEstimate ? `⚠ ${elapsed}min / ${sector.timeEstimate}min est. — OVER TIME.` :
+    `${elapsed}min / ${sector.timeEstimate}min est. — ON TRACK FOR BONUS`;
+
   const toneClass = verifyResult?.tone === 'hostile' ? 'border-destructive text-destructive'
     : verifyResult?.tone === 'reward' ? 'border-primary text-primary'
     : 'border-muted-foreground text-muted-foreground';
+
+  const purgePoints = (t: { trash: number }) => Math.round(t.trash * 1.5);
+  const claimPoints = (t: { loot: number }) => Math.round(t.loot * 1.5);
 
   return (
     <TerminalLayout title={`TARGETS — ${sector.name}`} syslog={`${doneCount}/${sector.targets.length} targets processed.`}>
@@ -139,15 +156,18 @@ export default function SectorTargets() {
         <div className="text-muted-foreground text-xs mb-2 font-body">{sector.desc}</div>
 
         {elapsed !== null && (
-          <div className={`text-[11px] mb-3 ${elapsed > sector.timeEstimate * 2 ? 'text-destructive' : elapsed > sector.timeEstimate ? 'text-destructive' : 'text-primary'}`}>
-            ⏱ {elapsed} MIN ELAPSED / {sector.timeEstimate} MIN EST.
-            {elapsed > sector.timeEstimate * 2 && ' — WAY OVER. EMBARRASSING.'}
-            {elapsed > sector.timeEstimate && elapsed <= sector.timeEstimate * 2 && ' — RUNNING SLOW.'}
+          <div className={`text-[11px] mb-3 ${timerColor}`}>
+            ⏱ {timerText}
+            {timerBonus !== undefined && (
+              <span className={timerBonus > 0 ? 'text-primary ml-2' : 'text-destructive ml-2'}>
+                {timerBonus > 0 ? `+${timerBonus} TIMER BONUS` : `${timerBonus} TIMER PENALTY`}
+              </span>
+            )}
           </div>
         )}
       </div>
 
-      {/* Attack Suggestion (v4.4: moved here from SectorDetail, only shown when targets remain) */}
+      {/* Attack Suggestion */}
       {!allDone && (
         <div className="border border-accent/30 bg-muted p-3 mb-3">
           <div className="text-accent tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
@@ -156,9 +176,7 @@ export default function SectorTargets() {
           <div className="text-muted-foreground text-xs font-body leading-relaxed">
             {loadingAttack ? (
               <span className="animate-pulse">Generating tactical recommendation...</span>
-            ) : (
-              attackSuggestion
-            )}
+            ) : attackSuggestion}
           </div>
         </div>
       )}
@@ -168,12 +186,6 @@ export default function SectorTargets() {
         const isDone = state.completedTargets.includes(target.id);
         const action = state.targetActions[target.id];
         const actionLabel = getActionLabel(action);
-
-        // v4.4: Show exact points earned
-        const purgePoints = Math.round(target.trash * 1.5);
-        const claimPoints = Math.round(target.loot * 1.5);
-        const exileTrash = Math.round(target.trash * 0.5);
-        const exileLoot = Math.round(target.loot * 0.5);
 
         return (
           <div key={target.id} className={`border p-3 mb-2 ${isDone ? 'border-primary/20' : 'border-border'}`}>
@@ -199,13 +211,13 @@ export default function SectorTargets() {
             {!isDone && (
               <div className="flex flex-col gap-1">
                 <TerminalButton variant="eliminate" onClick={() => handleAction(target.id, 'purge')}>
-                  {'>'} PURGE — throw it out &nbsp;+{purgePoints} PURGED
+                  {'>'} PURGE — throw it out &nbsp;+{purgePoints(target)} PURGED
                 </TerminalButton>
                 <TerminalButton variant="salvage" onClick={() => handleAction(target.id, 'claim')}>
-                  {'>'} CLAIM — keep & organize &nbsp;+{claimPoints} CLAIMED
+                  {'>'} CLAIM — keep & organize &nbsp;+{claimPoints(target)} CLAIMED
                 </TerminalButton>
                 <TerminalButton variant="relocate" onClick={() => handleAction(target.id, 'exile')}>
-                  {'>'} EXILE — move out of zone &nbsp;+{exileTrash}/{exileLoot}
+                  {'>'} EXILE — move out of zone &nbsp;+{Math.round(target.trash * 0.5)}/{Math.round(target.loot * 0.5)}
                 </TerminalButton>
               </div>
             )}
@@ -219,8 +231,17 @@ export default function SectorTargets() {
           <div className="text-primary text-xs tracking-widest mb-2">ALL TARGETS PROCESSED</div>
           <div className="text-muted-foreground text-[11px] font-body mb-3 leading-relaxed">
             Take a photo of THIS SPECIFIC SECTOR showing visible improvement.{'\n'}
-            Wrong room, meme, selfie, or random photo = rejected + score penalty.
+            Tier 1 items must be visibly gone. Tier 3 gets lenient pass.{'\n'}
+            Wrong room, meme, selfie = rejected + score penalty.
           </div>
+
+          {elapsed !== null && (
+            <div className={`text-[11px] mb-3 ${elapsed <= sector.timeEstimate ? 'text-primary' : 'text-destructive'}`}>
+              {elapsed <= sector.timeEstimate
+                ? `⏱ ON TRACK — beat ${sector.timeEstimate}min for +${TIMER_BEAT_BONUS} PURGED bonus`
+                : `⏱ OVER TIME — ${-TIMER_MISS_PENALTY} PURGED penalty will apply`}
+            </div>
+          )}
 
           {penalties > 0 && (
             <div className="border border-destructive bg-destructive/5 p-2 mb-3 text-destructive text-[11px]">
@@ -230,37 +251,25 @@ export default function SectorTargets() {
 
           {verifyState === 'idle' && (
             <div className="border border-dashed border-border p-3 mb-3">
-              <div className="relative">
-                <TerminalButton variant="scan" onClick={() => fileRef.current?.click()}>
-                  {'>'} UPLOAD CONFIRMATION PHOTO
-                </TerminalButton>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handlePhotoSelect}
-                />
-              </div>
+              <TerminalButton variant="scan" onClick={() => fileRef.current?.click()}>
+                {'>'} UPLOAD CONFIRMATION PHOTO
+              </TerminalButton>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
             </div>
           )}
 
-          {/* v4.4: "Are you sure?" confirmation step */}
           {verifyState === 'confirm' && verifyPhoto && (
             <div className="border border-accent/30 p-3 mb-3">
               <div className="text-accent text-[10px] tracking-widest mb-2">PHOTO CAPTURED</div>
               <img src={verifyPhoto} alt="Confirmation" className="w-full h-32 object-cover border border-border mb-2 opacity-80" />
               <div className="border border-accent p-2 mb-3 text-accent text-[11px] font-body leading-relaxed">
                 ⚠ ARE YOU SURE this photo shows {sector.name}?{'\n'}
-                Submitting an unrelated photo will cost you points.
+                The OS judges by tier. Tier 1 items must be visibly gone.
               </div>
               <TerminalButton variant="confirm" onClick={handleVerify}>
                 {'>'} CONFIRM — I'M SURE THIS IS {sector.name}
               </TerminalButton>
-              <TerminalButton variant="back" onClick={() => {
-                setVerifyState('idle');
-                setVerifyPhoto(null);
-              }}>
+              <TerminalButton variant="back" onClick={() => { setVerifyState('idle'); setVerifyPhoto(null); }}>
                 {'<'} RETAKE
               </TerminalButton>
             </div>
@@ -268,17 +277,14 @@ export default function SectorTargets() {
 
           {verifyState === 'uploading' && (
             <div className="border border-primary/30 p-3 mb-3 text-center">
-              <div className="text-primary text-xs tracking-widest animate-pulse">
-                LOADING PHOTO...
-              </div>
+              <div className="text-primary text-xs tracking-widest animate-pulse">LOADING PHOTO...</div>
             </div>
           )}
 
           {verifyState === 'verifying' && (
             <div className="border border-primary/30 p-3 mb-3 text-center">
-              <div className="text-primary text-xs tracking-widest animate-pulse">
-                VERIFYING CONFIRMATION PHOTO...
-              </div>
+              <div className="text-primary text-xs tracking-widest animate-pulse">VERIFYING CONFIRMATION PHOTO...</div>
+              <div className="text-muted-foreground text-[10px] mt-1 font-body">Tier-aware judgment in progress.</div>
             </div>
           )}
 
@@ -315,6 +321,11 @@ export default function SectorTargets() {
       {state.confirmedSectors.includes(key) && (
         <div className="border border-primary/30 p-3 mt-3 text-primary/60 text-xs text-center tracking-widest">
           ✓ SECTOR CONFIRMED — RESULTS LOCKED
+          {timerBonus !== undefined && (
+            <div className={`mt-1 ${timerBonus > 0 ? 'text-primary' : 'text-destructive'}`}>
+              {timerBonus > 0 ? `+${timerBonus} TIMER BONUS APPLIED` : `${timerBonus} TIMER PENALTY APPLIED`}
+            </div>
+          )}
         </div>
       )}
 

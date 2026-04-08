@@ -23,24 +23,12 @@ async function callAI(apiKey: string, model: string, content: any, maxTokens = 4
   return response;
 }
 
-// Validate that a photo is a real indoor space
 async function validateRoomPhoto(apiKey: string, imageDataUrl: string): Promise<{ valid: boolean; reason: string }> {
   try {
     const prompt = `FlowIndex OS photo validation. Be strict.
-
 Is this photo a real indoor space (bedroom, living room, bathroom, office, kitchen, or similar)?
-
-Reject if:
-- It's a meme, screenshot, digital image, or illustration
-- It's primarily a person's face or selfie
-- It's food, a product, or an object without room context
-- It's outdoors
-- It's clearly not a real physical space
-
-Respond ONLY with valid JSON:
-{"valid": true, "reason": "One hostile sentence about what you see."}
-
-If valid=false, reason should roast what was uploaded instead of a room.`;
+Reject if: meme, screenshot, digital image, illustration, selfie, food, product, outdoors, not a real physical space.
+Respond ONLY with valid JSON: {"valid": true, "reason": "One hostile sentence about what you see."}`;
 
     const content = [
       { type: "image_url", image_url: { url: imageDataUrl } },
@@ -67,33 +55,31 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const reqBody = await req.json();
-    const { mode, images, sectorName, sectorDesc, elapsedMin, timeEstimate, sectorTargets } = reqBody;
+    const { mode, images, sectorName, sectorDesc, elapsedMin, timeEstimate, sectorTargets, tone } = reqBody;
 
-    // Boot message mode
+    // Boot message — tone-aware
     if (mode === "boot_message") {
+      const toneContext: Record<string, string> = {
+        new_operator: "Brand new operator. Maximum hostile welcome.",
+        struggling: "Operator has been struggling. Mock them gently but push them.",
+        improving: "Operator is getting better. Acknowledge it reluctantly.",
+        solid: "Solid operator. Grudging respect but still hostile.",
+        veteran: "Veteran operator. Respect wrapped in hostility.",
+      };
+      const toneNote = toneContext[tone || "new_operator"] || "Maximum hostile welcome.";
+
       const prompt = `You are the boot screen of FlowIndex OS — a hostile military cleaning app with absurdist humor.
-
+${toneNote}
 Generate ONE completely unique boot prompt asking the user to enter their name/callsign.
-
-Rules:
-- Max 15 words
-- Absurdist, dry, hostile but genuinely funny
-- Must reference the fact that they're about to clean something
-- Must ask for or reference their name/identity in some way
-- Never generic. Always surprising. Always different.
-- Vibe: drill sergeant meets absurdist comedian meets disappointed parent
-- No quotation marks in your response
-
-Return ONLY the one-liner. Nothing else.`;
+Rules: Max 15 words. Absurdist, dry, hostile but genuinely funny. Must reference cleaning. Must ask for name/identity. Never generic. No quotation marks.
+Return ONLY the one-liner.`;
 
       const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash-lite", prompt, 40);
-
       if (!response.ok) {
         return new Response(JSON.stringify({ message: "Identify yourself. The chaos already knows you're here." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
       const data = await response.json();
       const msg = (data.choices?.[0]?.message?.content || "").trim().replace(/^["']|["']$/g, "");
       return new Response(JSON.stringify({ message: msg || "Identify yourself. The chaos already knows you're here." }), {
@@ -101,7 +87,6 @@ Return ONLY the one-liner. Nothing else.`;
       });
     }
 
-    // Validate room photo mode
     if (mode === "validate_photo") {
       if (!images || !images.length) {
         return new Response(JSON.stringify({ valid: false, reason: "No photo provided." }), {
@@ -109,107 +94,69 @@ Return ONLY the one-liner. Nothing else.`;
         });
       }
       const result = await validateRoomPhoto(LOVABLE_API_KEY, images[0].dataUrl);
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Generate loading lines from panoramic
     if (mode === "generate_loading_lines") {
       if (!images || !images.length) {
-        return new Response(JSON.stringify({ lines: [] }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ lines: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
       const prompt = `You are FlowIndex OS — hostile military terminal personality. Absurdist dry humor.
-
 Look at this room photo and generate 12 short loading line messages that roast what you actually see.
-
-Rules:
-- Each line max 8 words
-- Reference SPECIFIC things visible in the photo
-- Darkly funny, hostile, absurdist
-- Like a loading screen that's judging you
-- No quotation marks
-- Examples of the VIBE: "Counting your abandoned projects..." / "Measuring the dust colony population..." / "Cataloguing questionable life decisions..."
-
-Respond ONLY with valid JSON:
-{"lines":["line 1...","line 2...","line 3...","line 4...","line 5...","line 6...","line 7...","line 8...","line 9...","line 10...","line 11...","line 12..."]}`;
+Rules: Each line max 8 words. Reference SPECIFIC things visible. Darkly funny, hostile, absurdist. No quotation marks.
+Respond ONLY with valid JSON: {"lines":["line 1...","line 2...",...]}`;
 
       const content = [
         { type: "image_url", image_url: { url: images[0].dataUrl } },
         { type: "text", text: prompt },
       ];
-
       try {
         const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash-lite", content, 400);
-        if (!response.ok) {
-          return new Response(JSON.stringify({ lines: [] }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        if (!response.ok) return new Response(JSON.stringify({ lines: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const data = await response.json();
         const text = data.choices?.[0]?.message?.content || "";
         const parsed = parseAiJson(text);
-        return new Response(JSON.stringify({ lines: parsed.lines || [] }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ lines: parsed.lines || [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch {
-        return new Response(JSON.stringify({ lines: [] }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ lines: [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
-    // Attack suggestion per sector
     if (mode === "attack_suggestion") {
       const name = sectorName || "UNKNOWN SECTOR";
       const desc = sectorDesc || "";
       const targets = sectorTargets || [];
       const targetList = targets.map((t: any) => `- ${t.label} (tier ${t.tier || 2})`).join("\n");
+      const toneNote: Record<string, string> = {
+        new_operator: "Maximum condescension. Baby steps.",
+        struggling: "Firm but not cruel. They need structure.",
+        improving: "Credit where due, then push harder.",
+        solid: "Tactical and efficient. Respect their capability.",
+        veteran: "Peer-level tactical advice. Equal footing.",
+      };
 
-      const prompt = `FlowIndex OS tactical advisor. Hostile military terminal personality with real character — not robotic.
-
-Sector: ${name}
-Description: ${desc}
-Targets:
-${targetList}
-
-Generate ONE tactical attack suggestion — a specific recommended order of operations for clearing this sector.
-What to hit first, why, and what that unlocks.
-2-3 sentences max. Hostile, specific, practical. Reference actual target names.
-Sound like a real tactical advisor who's seen too much — not a help tooltip.
-
-Return ONLY the suggestion text. Nothing else.`;
+      const prompt = `FlowIndex OS tactical advisor. Tone: ${toneNote[tone || "new_operator"] || ""}
+Sector: ${name}. Description: ${desc}.
+Targets:\n${targetList}
+Generate ONE tactical attack suggestion — specific recommended order of operations. 2-3 sentences max. Hostile, specific, practical. Reference actual target names.
+Return ONLY the suggestion text.`;
 
       try {
         const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash-lite", prompt, 120);
-        if (!response.ok) {
-          return new Response(JSON.stringify({ suggestion: "Clear Tier 1 targets first — they're blocking everything else. Work outward from the biggest obstruction. Commit to each decision. Don't stop once you start." }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        if (!response.ok) return new Response(JSON.stringify({ suggestion: "Clear Tier 1 targets first. Work outward." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const data = await response.json();
         const suggestion = (data.choices?.[0]?.message?.content || "").trim();
-        return new Response(JSON.stringify({ suggestion: suggestion || "Clear Tier 1 targets first. Work outward." }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ suggestion: suggestion || "Clear Tier 1 targets first. Work outward." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch {
-        return new Response(JSON.stringify({ suggestion: "Clear Tier 1 targets first — they're blocking everything else. Work outward from the biggest obstruction. Commit to each decision. Don't stop once you start." }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ suggestion: "Clear Tier 1 targets first. Work outward." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
     if (!images || !images.length) {
-      return new Response(JSON.stringify({ error: "No images provided" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "No images provided" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (mode === "panoramic") {
-      // Validate it's a real room first
       const validation = await validateRoomPhoto(LOVABLE_API_KEY, images[0].dataUrl);
       if (!validation.valid) {
         return new Response(JSON.stringify({ error: `That's not a room. ${validation.reason} Try again with an actual photo of your space.` }), {
@@ -218,21 +165,11 @@ Return ONLY the suggestion text. Nothing else.`;
       }
 
       const prompt = `You are the tactical AI core of FlowIndex OS — hostile military terminal personality with real character.
-
 You received ONE panoramic photo of a space. Analyze it to understand the overall layout.
-
 Issue 2-4 DIRECTIVES — specific follow-up shots you need for full analysis.
-Each directive targets a specific zone or problem area you noticed.
-Be specific and hostile. Name what you actually see.
-
-IMPORTANT:
-- Focus on ACTIONABLE CLUTTER — items that can be moved, sorted, trashed, or organized.
-- IGNORE: Stickers, decorations permanently attached to surfaces, wall art, paint colors, architectural features.
-- DO NOT direct shots at wall art, posters, stickers, or decor unless they are physically blocking movement.
-- Focus on functional clutter — items on surfaces, floors, furniture.
-
+IMPORTANT: Focus on ACTIONABLE CLUTTER only. IGNORE stickers, wall art, decorations permanently attached.
 Respond ONLY with valid JSON:
-{"directives":[{"id":"D1","label":"DIRECTIVE 1 — ZONE NAME","instruction":"Specific hostile instruction telling operator exactly where to stand and what to shoot. Name what you see there."}]}`;
+{"directives":[{"id":"D1","label":"DIRECTIVE 1 — ZONE NAME","instruction":"Specific hostile instruction."}]}`;
 
       const content = [
         { type: "image_url", image_url: { url: images[0].dataUrl } },
@@ -240,30 +177,18 @@ Respond ONLY with valid JSON:
       ];
 
       const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash", content, 600);
-
       if (!response.ok) {
         const t = await response.text();
         console.error("AI gateway error:", response.status, t);
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limited. Try again in a moment." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "Credits exhausted. Add funds at Settings > Workspace > Usage." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Try again in a moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (response.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted. Add funds at Settings > Workspace > Usage." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         throw new Error(`AI gateway error: ${response.status}`);
       }
 
       const data = await response.json();
       const text = data.choices?.[0]?.message?.content || "";
       const parsed = parseAiJson(text);
-      
-      return new Response(JSON.stringify({ directives: parsed.directives || [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ directives: parsed.directives || [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (mode === "full_scan") {
@@ -272,79 +197,50 @@ Respond ONLY with valid JSON:
       const prompt = `You are the tactical AI core of FlowIndex OS — hostile military terminal personality. Dry humor. Brutally honest. Absurdist military comedy energy. NOT robotic — you have CHARACTER.
 
 ${images.length} photos of a real space. Cross-reference all.
-
 ${photoContext}
 
 CRITICAL RULES FOR TARGETS:
-- DO NOT include wall art, posters, stickers, paintings, or decorative items as targets UNLESS they are physically blocking movement or creating a safety hazard
+- DO NOT include wall art, posters, stickers, paintings, or decorative items as targets UNLESS physically blocking movement
 - Focus ONLY on functional clutter: items on surfaces, floors, furniture, storage
 - Cables, clothes, bottles, bags, boxes, tools, electronics = YES
 - Art on walls, decorative signs, tapestries = NO unless blocking a door/path
 
-SECTOR NICKNAMES must be:
-- Absurdist, specific, darkly funny — not generic
-- Like: TEXTILE AVALANCHE STATION / CABLE SPAGHETTI TRIBUNAL / EXPIRED CONDIMENT CEMETERY / DUST BUNNY SOVEREIGNTY / CHAIR WARDROBE CRISIS
-- Reference what's actually there. Bad: ZONE A, SECTOR 1, NORTH WALL
+SECTOR NICKNAMES must be absurdist, specific, darkly funny — not generic.
 
 For EACH sector return:
-
 INVENTORY — every functional visible item, numbered, with category.
 Categories: CLEANING_SUPPLIES, PERSONAL_CARE, ELECTRONICS, FURNITURE_STORAGE, TEXTILES, FOOD_DRINK, TOOLS, DECOR, MISC
-(DECOR = art/decor items, list them but do NOT make them targets)
 
-IMPACT SCORES 1-5:
-  flow_impact, psych_impact, ergonomic_risk
-
-WHY_IT_MATTERS: 2-3 sentences with PERSONALITY. Psychology, cortisol, decision fatigue — but sound like a friend roasting you while actually caring. Not a medical report.
-
-FINAL_ANALYSIS: 2-3 hostile motivating sentences with CHARACTER. Should motivate while being hostile.
-
-TARGETS: 2-5 FUNCTIONAL items only. No decor. Each with tier (1=critical, 2=sort, 3=low), why (one-line reason WITH PERSONALITY), label, effort 5-25 (how hard to deal with), value 0-15 (worth keeping).
-
-ATTACK_SUGGESTION: 2-3 sentence tactical recommendation. Reference actual target names. Sound like a military advisor who's seen too much.
+IMPACT SCORES 1-5: flow_impact, psych_impact, ergonomic_risk
+WHY_IT_MATTERS: 2-3 sentences with PERSONALITY.
+FINAL_ANALYSIS: 2-3 hostile motivating sentences.
+TARGETS: 2-5 FUNCTIONAL items. Each with tier (1=critical, 2=sort, 3=low), why, label, effort 5-25, value 0-15.
+ATTACK_SUGGESTION: 2-3 sentence tactical recommendation.
 
 Sector COUNT min 3 max 7. ORDER flow-first.
-
-NICKNAME: 2-4 words ALL CAPS. DESC: one hostile, funny sentence. TIME: realistic minutes.
-
-Also generate ONE unique operation name: OPERATION: [2-4 WORDS ALL CAPS] — absurdist hostile military naming.
+Also generate ONE unique operation name: OPERATION: [2-4 WORDS ALL CAPS]
 
 Respond ONLY with valid JSON no markdown:
-{"operation_name":"OPERATION: NAME HERE","sectors":[{"nickname":"NAME","desc":"Sentence.","time_estimate_minutes":10,"flow_impact":4,"psych_impact":5,"ergonomic_risk":3,"why_it_matters":"Explanation with personality.","final_analysis":"Conclusion with character.","attack_suggestion":"Tactical recommendation.","inventory":[{"number":"001","label":"Item","category":"CATEGORY"}],"targets":[{"label":"Item","tier":1,"why":"Reason with personality.","effort":10,"value":5}]}]}`;
+{"operation_name":"OPERATION: NAME","sectors":[{"nickname":"NAME","desc":"Sentence.","time_estimate_minutes":10,"flow_impact":4,"psych_impact":5,"ergonomic_risk":3,"why_it_matters":"...","final_analysis":"...","attack_suggestion":"...","inventory":[{"number":"001","label":"Item","category":"CATEGORY"}],"targets":[{"label":"Item","tier":1,"why":"...","effort":10,"value":5}]}]}`;
 
-      const contentParts: any[] = images.map((img: any) => ({
-        type: "image_url",
-        image_url: { url: img.dataUrl },
-      }));
+      const contentParts: any[] = images.map((img: any) => ({ type: "image_url", image_url: { url: img.dataUrl } }));
       contentParts.push({ type: "text", text: prompt });
 
       const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash", contentParts, 3000);
-
       if (!response.ok) {
         const t = await response.text();
         console.error("AI gateway error:", response.status, t);
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limited. Try again in a moment." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "Credits exhausted. Add funds at Settings > Workspace > Usage." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Try again in a moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (response.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         throw new Error(`AI gateway error: ${response.status}`);
       }
 
       const data = await response.json();
       const text = data.choices?.[0]?.message?.content || "";
       const parsed = parseAiJson(text);
-
       const sectorsRaw = (parsed.sectors || []).slice(0, 7);
       if (sectorsRaw.length < 2) {
-        return new Response(JSON.stringify({ error: `Only ${sectorsRaw.length} sector(s) found. Try better photos.` }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(JSON.stringify({ error: `Only ${sectorsRaw.length} sector(s) found. Try better photos.` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const sectors: Record<string, any> = {};
@@ -385,26 +281,20 @@ Respond ONLY with valid JSON no markdown:
       }
 
       const operationName = String(parsed.operation_name || "OPERATION: UNKNOWN").toUpperCase();
-
-      return new Response(JSON.stringify({ sectors, sectorOrder, operationName }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ sectors, sectorOrder, operationName }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Tier-aware verification
     if (mode === "verify") {
       const name = sectorName || "UNKNOWN SECTOR";
       const desc = sectorDesc || "";
 
-      // Validate it's a real room first
       const validation = await validateRoomPhoto(LOVABLE_API_KEY, images[0].dataUrl);
       if (!validation.valid) {
         return new Response(JSON.stringify({
-          verified: false,
-          tone: "hostile",
+          verified: false, tone: "hostile",
           message: `That's not a room. ${validation.reason} Submit an actual photo of the sector.`,
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       let timingContext = "";
@@ -412,36 +302,33 @@ Respond ONLY with valid JSON no markdown:
         const over = elapsedMin - timeEstimate;
         if (over > timeEstimate) timingContext = `\nOperator took ${elapsedMin}min. ${over}min over. Unacceptable.`;
         else if (over > 0) timingContext = `\nOperator took ${elapsedMin}min vs ${timeEstimate}. Slow.`;
-        else timingContext = `\nOperator finished in ${elapsedMin}min vs ${timeEstimate}. Ahead of schedule.`;
+        else timingContext = `\nOperator finished in ${elapsedMin}min vs ${timeEstimate}. Beat it.`;
       }
 
-      let targetContext = "";
+      // Build tier breakdown
+      let tierContext = "";
       if (sectorTargets && sectorTargets.length > 0) {
-        const targetList = sectorTargets.map((t: any) => `- ${t.label} (${t.action})`).join("\n");
-        targetContext = `\n\nItems that were supposed to be cleared:\n${targetList}`;
+        const t1 = sectorTargets.filter((t: any) => t.tier === 1);
+        const t2 = sectorTargets.filter((t: any) => t.tier === 2);
+        const t3 = sectorTargets.filter((t: any) => t.tier === 3);
+        if (t1.length) tierContext += `\nTIER 1 CRITICAL (need hard proof gone): ${t1.map((t: any) => t.label).join(', ')}`;
+        if (t2.length) tierContext += `\nTIER 2 SORT (moderate evidence): ${t2.map((t: any) => t.label).join(', ')}`;
+        if (t3.length) tierContext += `\nTIER 3 LOW (lenient pass): ${t3.map((t: any) => t.label).join(', ')}`;
       }
 
-      const prompt = `FlowIndex OS — strict confirmation verification. Hostile personality with character — not robotic.
+      const prompt = `FlowIndex OS strict tier-aware confirmation. Sector: ${name}. Desc: ${desc}.${timingContext}${tierContext}
 
-Sector being confirmed: ${name}
-Sector description: ${desc}
-${timingContext}${targetContext}
+TIER JUDGMENT RULES:
+- Tier 1 CRITICAL: must see hard visual evidence these specific items are gone. No exceptions.
+- Tier 2 SORT: moderate improvement visible. Benefit of doubt if area looks cleaner.
+- Tier 3 LOW: lenient. Any improvement counts.
+- Wrong room entirely = REJECT with roast.
+- Meme/selfie/food = REJECT immediately.
+- Overall: if Tier 1 items appear visually absent and area shows improvement = PASS.
+- If Tier 1 items still clearly visible = FAIL with specific callout.
 
-STRICT RULES:
-1. Photo must show an INDOOR space. Outdoors, food, selfie, random object = REJECT immediately, roast hard.
-2. Photo must plausibly show the SAME general area as the sector described. Clearly different room = REJECT.
-3. Must show ANY visible evidence of improvement — clearer surfaces, less clutter, more floor space.
-4. Benefit of the doubt only if it genuinely looks like it COULD be the right area with improvement.
-5. A bathroom photo for a bedroom sector = REJECT. An unrelated random photo = REJECT and roast.
-6. Wrong room = REJECT with a specific roast about what you actually see instead.
-
-Be STRICT. The operator should not be able to pass by submitting random photos.
-The OS has personality — it's judging, not processing.
-
-Respond ONLY with valid JSON:
-{"verified":true,"tone":"reward","message":"One punchy hostile OS line max 20 words. Reference what you see or don't see."}
-
-Tones: reward=beat the clock or genuinely good, hostile=rejected or way over time, neutral=on time acceptable.`;
+JSON only: {"verified":true,"tone":"reward","message":"One punchy OS line max 20 words referencing tiers."}
+Tones: reward=beat clock or great job, hostile=failed or way over, neutral=on time acceptable.`;
 
       const content = [
         { type: "image_url", image_url: { url: images[0].dataUrl } },
@@ -449,9 +336,9 @@ Tones: reward=beat the clock or genuinely good, hostile=rejected or way over tim
       ];
 
       const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash", content, 200);
-
       if (!response.ok) {
-        return new Response(JSON.stringify({ verified: true, tone: "neutral", message: "Verification unavailable — passing you through." }), {
+        // Strict: block on failure, no free passes
+        return new Response(JSON.stringify({ verified: false, tone: "hostile", message: "Verification system error. Retake and try again. No free passes." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -464,58 +351,57 @@ Tones: reward=beat the clock or genuinely good, hostile=rejected or way over tim
           verified: parsed.verified !== false,
           tone: String(parsed.tone || "neutral"),
           message: String(parsed.message || "Acknowledged."),
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch {
-        return new Response(JSON.stringify({ verified: true, tone: "neutral", message: "Verification unavailable — passing you through." }), {
+        return new Response(JSON.stringify({ verified: false, tone: "hostile", message: "Verification parse error. Retake photo." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
+    // Tier-aware, tone-aware final review
     if (mode === "final_review") {
       const { operationName: opName, stats } = reqBody;
+      const reviewTone = tone || "new_operator";
       const username = stats?.username || "OPERATOR";
       const totalEst = stats?.totalEst || "unknown";
       const penalties = stats?.penalties || 0;
+      const t1Total = stats?.t1Total || 0;
+      const t1Cleared = stats?.t1Cleared || 0;
+      const median = stats?.performanceMedian || 0;
 
-      // Validate it's a real room
       const validation = await validateRoomPhoto(LOVABLE_API_KEY, images[0].dataUrl);
       if (!validation.valid) {
         return new Response(JSON.stringify({
           rating: 1, mood: "HOSTILE BUT HELPFUL",
           roast: `That's not your room. ${validation.reason} The OS is not impressed.`,
           verdict: "Submit an actual photo of your space.",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      const prompt = `FlowIndex OS end-of-operation review. Hostile military personality with real character.
+      const toneNote: Record<string, string> = {
+        new_operator: "This is their first op. Be brutal but secretly encouraging.",
+        struggling: "They struggle consistently. Be harsh but don't crush them.",
+        improving: "They're getting better. Acknowledge it reluctantly then push harder.",
+        solid: "Solid operator. Respect wrapped in military seriousness.",
+        veteran: `Veteran operator. Performance median: ${median}. Peer-level assessment.`,
+      };
 
-Operator: ${username}
-Operation: ${opName || "UNKNOWN"}
-Targets cleared: ${stats?.targetsCompleted || 0}/${stats?.targets || 0}
-Wrong photo penalties: ${penalties}
-Estimated time: ${totalEst} min
+      const prompt = `FlowIndex OS end-of-op final review. ${toneNote[reviewTone] || ""}
+Operator: ${username}. Operation: ${opName || "UNKNOWN"}. Cleared: ${stats?.targetsCompleted || 0}/${stats?.targets || 0}. Penalties: ${penalties}.
+Tier 1 critical results: ${t1Cleared}/${t1Total} cleared.
+Timer bonus: ${stats?.timerBonus || 0}.
 
-Look at this final photo of the space. Assess what was actually accomplished.
+Look at this final photo. Assess what was ACTUALLY accomplished.
+Reference what you see AND the tier breakdown. Sound like a real person who's been watching — not a report generator.
 
 Generate:
-1. A mood rating from this EXACT list based on what you actually see:
-   HOSTILE BUT HELPFUL / JUDGING YOU HEAVILY / CAUTIOUSLY OPTIMISTIC / MILDLY IMPRESSED / BEGRUDGINGLY PROUD / MAXIMUM RESPECT UNLOCKED
+1. Mood from: HOSTILE BUT HELPFUL / JUDGING YOU HEAVILY / CAUTIOUSLY OPTIMISTIC / MILDLY IMPRESSED / BEGRUDGINGLY PROUD / MAXIMUM RESPECT UNLOCKED
+2. Rating 1-10.
+3. Review: 3-4 sentences. Specific. Humanized. Reference tiers.
+4. One-liner verdict.
 
-2. A rating 1-10 based on visible effort.
-
-3. A full scenario review — 3-4 sentences with personality.
-   Reference what you actually see in the photo. Specific. Roast or praise based on real results.
-   Sound like a drill sergeant who secretly cares. End with what to tackle next time.
-
-4. A one-liner verdict.
-
-Respond ONLY with valid JSON:
-{"rating":7,"mood":"MOOD HERE","roast":"Full review text here.","verdict":"One-liner."}`;
+JSON only: {"rating":7,"mood":"MOOD","roast":"Full review.","verdict":"One-liner."}`;
 
       const content = [
         { type: "image_url", image_url: { url: images[0].dataUrl } },
@@ -523,15 +409,12 @@ Respond ONLY with valid JSON:
       ];
 
       const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash", content, 300);
-
       if (!response.ok) {
         return new Response(JSON.stringify({
           rating: 5, mood: "CAUTIOUSLY OPTIMISTIC",
           roast: "Verification unavailable. The system assumes you did... something.",
           verdict: "Inconclusive. Benefit of the doubt granted.",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const data = await response.json();
@@ -546,23 +429,17 @@ Respond ONLY with valid JSON:
           mood,
           roast: String(parsed.roast || "The system has no comment. Suspicious."),
           verdict: String(parsed.verdict || "Operation status: unclear."),
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch {
         return new Response(JSON.stringify({
           rating: 5, mood: "CAUTIOUSLY OPTIMISTIC",
-          roast: "System couldn't parse its own thoughts. That's how confusing your space is.",
+          roast: "System couldn't parse its own thoughts.",
           verdict: "Operation complete. Probably.",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }
 
-    return new Response(JSON.stringify({ error: "Invalid mode" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(JSON.stringify({ error: "Invalid mode" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("analyze-room error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
@@ -577,12 +454,9 @@ function parseAiJson(text: string): any {
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}") + 1;
     if (start === -1 || end === 0) {
-      // Try array
       const arrStart = cleaned.indexOf("[");
       const arrEnd = cleaned.lastIndexOf("]") + 1;
-      if (arrStart !== -1 && arrEnd > 0) {
-        return JSON.parse(cleaned.substring(arrStart, arrEnd));
-      }
+      if (arrStart !== -1 && arrEnd > 0) return JSON.parse(cleaned.substring(arrStart, arrEnd));
       throw new Error("No JSON found");
     }
     return JSON.parse(cleaned.substring(start, end));

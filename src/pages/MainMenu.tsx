@@ -12,17 +12,18 @@ export default function MainMenu() {
     return null;
   }
 
-  const { scanDone, sectorOrder, sectors } = state;
+  const { scanDone, sectorOrder, sectors, opReviewed } = state;
   const total = sectorOrder.length;
   const done = sectorOrder.filter(k => sectorCleared(state, k)).length;
   const allClear = done >= total && total > 0;
   const allConfirmed = total > 0 && sectorOrder.every(k => state.confirmedSectors.includes(k));
 
-  // Determine what to show
-  const opActive = scanDone && !allClear;
+  const opActive = scanDone && !allClear && !opReviewed;
 
   const log = !scanDone
     ? "Scan your room. That's the only way this starts."
+    : opReviewed
+    ? 'Operation reviewed and archived. Start a new scenario or view history.'
     : allConfirmed
     ? 'ALL SECTORS CLEARED AND CONFIRMED. SUBMIT FINAL REVIEW.'
     : allClear
@@ -44,22 +45,22 @@ export default function MainMenu() {
           MAIN MENU // {state.username}
         </div>
         <div className="flex flex-col gap-1.5">
-          {/* Scan button: show when no scan or when all sectors confirmed (rescan) */}
-          {!scanDone && (
+          {/* No scan yet or op reviewed — show new scenario */}
+          {(!scanDone || opReviewed) && (
             <TerminalButton onClick={handleScanClick}>
-              {'>'} SCAN ROOM — START HERE
+              {'>'} {opReviewed ? 'NEW SCENARIO' : 'SCAN ROOM — START HERE'}
             </TerminalButton>
           )}
 
-          {/* During active op: show continue button, NOT scan */}
+          {/* During active op */}
           {opActive && (
             <TerminalButton onClick={() => navigate('/sectors')}>
               {'>'} CONTINUE OP — SECTOR MAP [STAGE {done + 1}/{total}]
             </TerminalButton>
           )}
 
-          {/* All clear: show rescan + final review */}
-          {allClear && (
+          {/* All clear but not reviewed */}
+          {allClear && !opReviewed && (
             <>
               {allConfirmed && (
                 <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
@@ -76,7 +77,7 @@ export default function MainMenu() {
           )}
 
           {/* Sector map disabled before first scan */}
-          {!scanDone && (
+          {!scanDone && !opReviewed && (
             <TerminalButton variant="locked" disabled>
               {'>'} SECTOR MAP — SCAN FIRST
             </TerminalButton>

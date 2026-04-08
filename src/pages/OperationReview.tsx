@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFlow, sectorCleared } from '@/lib/flowContext';
+import { useFlow, sectorCleared, getOsTone } from '@/lib/flowContext';
 import { supabase } from '@/integrations/supabase/client';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
@@ -19,11 +19,19 @@ export default function OperationReview() {
     verdict: string;
   } | null>(null);
 
-  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, username, sectorPenalties } = state;
+  const { sectors, sectorOrder, operationName, completedTargets, trash, loot, username, sectorPenalties, timerBonuses } = state;
   const totalTargets = sectorOrder.reduce((a, k) => a + (sectors[k]?.targets.length ?? 0), 0);
   const sectorsCleared = sectorOrder.filter(k => sectorCleared(state, k)).length;
   const totalEst = sectorOrder.reduce((a, k) => a + (sectors[k]?.timeEstimate ?? 0), 0);
   const totalPenalties = Object.values(sectorPenalties).reduce((a, b) => a + b, 0);
+  const totalTimerBonus = Object.values(timerBonuses || {}).reduce((a, b) => a + b, 0);
+  const tone = getOsTone(state);
+
+  // Build tier breakdown for the review
+  const allTargets = sectorOrder.flatMap(k => sectors[k]?.targets || []);
+  const clearedIds = new Set(completedTargets);
+  const t1Total = allTargets.filter(t => t.tier === 1).length;
+  const t1Cleared = allTargets.filter(t => t.tier === 1 && clearedIds.has(t.id)).length;
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,6 +51,7 @@ export default function OperationReview() {
           mode: 'final_review',
           images: [{ label: 'final_review', dataUrl: photo }],
           operationName,
+          tone,
           stats: {
             username: username || 'OPERATOR',
             sectors: sectorOrder.length,
@@ -53,6 +62,10 @@ export default function OperationReview() {
             loot,
             totalEst,
             penalties: totalPenalties,
+            timerBonus: totalTimerBonus,
+            t1Total,
+            t1Cleared,
+            performanceMedian: state.performanceMedian,
           },
         },
       });
@@ -63,6 +76,7 @@ export default function OperationReview() {
       if (data?.mood) {
         dispatch({ type: 'SET_MOOD', payload: data.mood });
       }
+      dispatch({ type: 'SET_OP_REVIEWED' });
       setReviewState('result');
     } catch {
       setResult({
@@ -71,13 +85,14 @@ export default function OperationReview() {
         roast: 'Verification unavailable. The system assumes you did... something.',
         verdict: 'Operation status: inconclusive.',
       });
+      dispatch({ type: 'SET_OP_REVIEWED' });
       setReviewState('result');
     }
   };
 
   const handleFinish = () => {
     dispatch({ type: 'ARCHIVE_SCENARIO' });
-    navigate('/menu');
+    navigate('/scenarios');
   };
 
   const ratingColor = (r: number) =>
@@ -94,12 +109,8 @@ export default function OperationReview() {
   };
 
   const moodColor = (mood: string) => {
-    if (['BEGRUDGINGLY PROUD', 'MILDLY IMPRESSED', 'MAXIMUM RESPECT UNLOCKED'].some(m => mood.includes(m))) {
-      return 'text-primary';
-    }
-    if (['HOSTILE BUT HELPFUL', 'JUDGING YOU HEAVILY'].some(m => mood.includes(m))) {
-      return 'text-destructive';
-    }
+    if (['BEGRUDGINGLY PROUD', 'MILDLY IMPRESSED', 'MAXIMUM RESPECT UNLOCKED'].some(m => mood.includes(m))) return 'text-primary';
+    if (['HOSTILE BUT HELPFUL', 'JUDGING YOU HEAVILY'].some(m => mood.includes(m))) return 'text-destructive';
     return 'text-accent';
   };
 
@@ -127,6 +138,16 @@ export default function OperationReview() {
               <span className="text-destructive text-right">{totalPenalties} WRONG PHOTOS</span>
             </>
           )}
+          {totalTimerBonus !== 0 && (
+            <>
+              <span className="text-muted-foreground">TIMER BONUS</span>
+              <span className={`text-right ${totalTimerBonus > 0 ? 'text-primary' : 'text-destructive'}`}>
+                {totalTimerBonus > 0 ? `+${totalTimerBonus}` : totalTimerBonus}
+              </span>
+            </>
+          )}
+          <span className="text-muted-foreground">TIER 1 CRITICAL</span>
+          <span className="text-foreground text-right">{t1Cleared}/{t1Total} CLEARED</span>
         </div>
       </div>
 
@@ -136,9 +157,9 @@ export default function OperationReview() {
           <div className="text-primary text-xs tracking-widest mb-2">FINAL VERIFICATION REQUIRED</div>
           <div className="text-muted-foreground text-[11px] font-body mb-3 leading-relaxed">
             Take a FINAL panoramic of the entire space.{'\n'}
-            Same sweep as the initial panoramic. Show the full space.{'\n'}
-            This is where mood is determined. Don't cheat.{'\n'}
-            Must be a real room. Memes and selfies will be rejected.
+            Same sweep as the initial panoramic.{'\n'}
+            This is the ONLY thing that determines SYS_MOOD.{'\n'}
+            Don't cheat yourself.
           </div>
 
           {!photo && (
@@ -146,13 +167,7 @@ export default function OperationReview() {
               <TerminalButton variant="scan" onClick={() => fileRef.current?.click()}>
                 {'>'} TAP TO UPLOAD FINAL PANORAMIC
               </TerminalButton>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoSelect}
-              />
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
             </div>
           )}
 
@@ -171,12 +186,8 @@ export default function OperationReview() {
       {/* Verifying */}
       {reviewState === 'verifying' && (
         <div className="border border-primary/30 p-3 mb-3 text-center">
-          <div className="text-primary text-xs tracking-widest animate-pulse">
-            ANALYZING FINAL STATE...
-          </div>
-          <div className="text-muted-foreground text-[10px] mt-2 font-body">
-            Comparing before and after. Generating judgment.
-          </div>
+          <div className="text-primary text-xs tracking-widest animate-pulse">ANALYZING FINAL STATE...</div>
+          <div className="text-muted-foreground text-[10px] mt-2 font-body">Tier-aware judgment. Generating final assessment.</div>
         </div>
       )}
 
@@ -184,12 +195,8 @@ export default function OperationReview() {
       {reviewState === 'result' && result && (
         <>
           <div className="border border-primary bg-muted p-3 mb-3">
-            <div className="text-primary text-[13px] tracking-[2px] border-b border-border pb-1.5 mb-2">
-              OPERATION COMPLETE
-            </div>
-            <div className="text-muted-foreground text-[11px]">
-              {operationName} // {username || 'OPERATOR'}
-            </div>
+            <div className="text-primary text-[13px] tracking-[2px] border-b border-border pb-1.5 mb-2">OPERATION COMPLETE</div>
+            <div className="text-muted-foreground text-[11px]">{operationName} // {username || 'OPERATOR'}</div>
           </div>
 
           {/* Stats */}
@@ -207,15 +214,21 @@ export default function OperationReview() {
                   <span className="text-destructive text-right">{totalPenalties} WRONG PHOTOS</span>
                 </>
               )}
+              {totalTimerBonus !== 0 && (
+                <>
+                  <span className="text-muted-foreground">TIMER BONUS</span>
+                  <span className={`text-right ${totalTimerBonus > 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {totalTimerBonus > 0 ? `+${totalTimerBonus}` : totalTimerBonus}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
           {/* Final Mood */}
           <div className="border border-border bg-muted p-3 mb-3">
             <div className="text-primary text-[11px] tracking-widest mb-2">FINAL MOOD</div>
-            <div className={`text-sm tracking-widest font-display ${moodColor(result.mood)}`}>
-              {result.mood}
-            </div>
+            <div className={`text-sm tracking-widest font-display ${moodColor(result.mood)}`}>{result.mood}</div>
           </div>
 
           {/* Rating */}
@@ -223,30 +236,23 @@ export default function OperationReview() {
             <div className="text-primary text-[11px] tracking-widest mb-2">PERFORMANCE RATING</div>
             <div className="flex items-center gap-3 mb-2">
               {ratingBar(result.rating)}
-              <span className={`text-sm font-display ${ratingColor(result.rating)}`}>
-                {result.rating}/10
-              </span>
+              <span className={`text-sm font-display ${ratingColor(result.rating)}`}>{result.rating}/10</span>
             </div>
           </div>
 
           {/* OS Review */}
           <div className="border border-primary/40 bg-muted p-3 mb-3">
             <div className="text-primary text-[11px] tracking-widest mb-2">OS REVIEW</div>
-            <div className="text-muted-foreground text-[11px] font-body leading-relaxed border-l-2 border-destructive pl-3 mb-3">
-              {result.roast}
-            </div>
-            <div className="text-accent text-xs font-body italic">
-              "{result.verdict}"
-            </div>
+            <div className="text-muted-foreground text-[11px] font-body leading-relaxed border-l-2 border-destructive pl-3 mb-3">{result.roast}</div>
+            <div className="text-accent text-xs font-body italic">"{result.verdict}"</div>
           </div>
 
           <TerminalButton variant="deploy" onClick={handleFinish}>
-            {'>'} BACK TO MAIN MENU
+            {'>'} ARCHIVE OP — VIEW SCENARIOS
           </TerminalButton>
         </>
       )}
 
-      {/* Skip review option */}
       {reviewState === 'upload' && (
         <TerminalButton variant="back" onClick={() => navigate('/sectors')}>
           {'<'} BACK TO MAP

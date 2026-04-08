@@ -29,20 +29,26 @@ export default function SystemExplainer() {
           THE POINT SYSTEM
         </div>
         <div className="text-muted-foreground text-xs font-body leading-relaxed space-y-2">
-          <p>
-            <span className="text-destructive">PURGE</span> — throw it out. Earns PURGED points based on how hard it was to let go.
-          </p>
-          <p>
-            <span className="text-accent">CLAIM</span> — keep it and organize it. Earns CLAIMED points based on its value.
-          </p>
-          <p>
-            <span className="text-secondary">EXILE</span> — move it out of this zone. Partial credit on both.
-          </p>
+          <p><span className="text-destructive">PURGE</span> — throw it out. Earns PURGED points based on effort required.</p>
+          <p><span className="text-accent">CLAIM</span> — keep and organize it. Earns CLAIMED points based on its value.</p>
+          <p><span className="text-secondary">EXILE</span> — move it out of this zone. Partial credit on both.</p>
           <div className="border-t border-border pt-2 mt-2">
-            <p><span className="text-destructive">PURGED</span> = total decisiveness score. How much you eliminated.</p>
-            <p><span className="text-accent">CLAIMED</span> = total organization score. How much value you kept.</p>
-            <p><span className="text-primary">SYS_MOOD</span> = the OS's overall judgment. Only set after your final review panoramic.</p>
+            <p><span className="text-destructive">PURGED</span> = your decisiveness score.</p>
+            <p><span className="text-accent">CLAIMED</span> = your organization score.</p>
+            <p><span className="text-primary">SYS_MOOD</span> = set ONLY after your final review panoramic.</p>
           </div>
+        </div>
+      </div>
+
+      {/* Timer */}
+      <div className="border border-border bg-muted p-3 mb-3">
+        <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
+          THE TIMER
+        </div>
+        <div className="text-muted-foreground text-xs font-body leading-relaxed">
+          Beat the sector time estimate = +10 PURGED bonus points.{'\n'}
+          Miss the estimate = -5 PURGED penalty.{'\n'}
+          The OS is watching the clock.
         </div>
       </div>
 
@@ -65,8 +71,8 @@ export default function SystemExplainer() {
         </div>
         <div className="text-muted-foreground text-xs font-body leading-relaxed">
           After clearing a sector, you submit a photo proving it's done.{'\n\n'}
-          The OS is strict. Wrong room, unrelated photo, or random meme = rejected and penalized.{'\n\n'}
-          Submit photos of the actual sector you just cleaned.
+          The OS judges by tier. Tier 1 critical items require hard visual proof. Tier 3 low priority gets a lenient pass.{'\n\n'}
+          Wrong room, meme, or random photo = rejected + 5 point penalty. Submit photos of the actual sector you cleaned.
         </div>
       </div>
 

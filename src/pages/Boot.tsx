@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useFlow } from '@/lib/flowContext';
+import { useFlow, getOsTone } from '@/lib/flowContext';
 import { BOOT_MESSAGES } from '@/lib/mockData';
 import { supabase } from '@/integrations/supabase/client';
 import TerminalLayout from '@/components/TerminalLayout';
@@ -15,40 +15,36 @@ export default function Boot() {
   const [loading, setLoading] = useState(true);
   const [showNewUser, setShowNewUser] = useState(false);
 
-  // If navigated to /new-user, show new user form
   useEffect(() => {
     if (location.pathname === '/new-user') {
       setShowNewUser(true);
     }
   }, [location.pathname]);
 
+  // Dynamic tone-aware boot message
+  const tone = getOsTone(state);
+
   useEffect(() => {
     let cancelled = false;
     const fallback = BOOT_MESSAGES[Math.floor(Math.random() * BOOT_MESSAGES.length)];
 
     supabase.functions.invoke('analyze-room', {
-      body: { mode: 'boot_message' },
+      body: { mode: 'boot_message', tone },
     }).then(({ data, error }) => {
       if (cancelled) return;
-      if (error || !data?.message) {
-        setBootMsg(fallback);
-      } else {
-        setBootMsg(data.message);
-      }
+      if (error || !data?.message) setBootMsg(fallback);
+      else setBootMsg(data.message);
       setLoading(false);
     }).catch(() => {
-      if (!cancelled) {
-        setBootMsg(fallback);
-        setLoading(false);
-      }
+      if (!cancelled) { setBootMsg(fallback); setLoading(false); }
     });
 
     return () => { cancelled = true; };
-  }, []);
+  }, [tone]);
 
   const allUsers = state.allUsers;
 
-  // New user form (from "NEW OPERATOR" button or /new-user route)
+  // New user form
   if (showNewUser || (allUsers.length === 0)) {
     return (
       <TerminalLayout title="FIRST BOOT" syslog="The OS is waiting." showMatrix={false}>
@@ -59,9 +55,7 @@ export default function Boot() {
           <div className="text-muted-foreground text-xs mb-4 font-body leading-relaxed">
             {loading ? (
               <span className="animate-pulse">INITIALIZING BOOT SEQUENCE...</span>
-            ) : (
-              bootMsg
-            )}
+            ) : bootMsg}
           </div>
           <input
             type="text"
@@ -90,13 +84,7 @@ export default function Boot() {
             {'>'} INITIALIZE OPERATOR
           </TerminalButton>
           {allUsers.length > 0 && (
-            <TerminalButton
-              variant="back"
-              onClick={() => {
-                setShowNewUser(false);
-                navigate('/');
-              }}
-            >
+            <TerminalButton variant="back" onClick={() => { setShowNewUser(false); navigate('/'); }}>
               {'<'} BACK TO OPERATOR SELECT
             </TerminalButton>
           )}
@@ -105,12 +93,12 @@ export default function Boot() {
     );
   }
 
-  // Operator select (existing users)
+  // Operator select
   return (
     <TerminalLayout title="BOOT" syslog="Select your profile or create a new one." showMatrix={false}>
       <div className="border border-border bg-muted p-3 mb-3.5">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
-          SELECT OPERATOR
+          SELECT OPERATOR // SAVE SLOTS
         </div>
         <div className="text-muted-foreground text-xs mb-3">Who's running this op?</div>
         <div className="flex flex-col gap-1.5">
@@ -125,12 +113,7 @@ export default function Boot() {
               {'>'} {u}
             </TerminalButton>
           ))}
-          <TerminalButton
-            variant="back"
-            onClick={() => {
-              setShowNewUser(true);
-            }}
-          >
+          <TerminalButton variant="back" onClick={() => setShowNewUser(true)}>
             {'>'} NEW OPERATOR
           </TerminalButton>
         </div>

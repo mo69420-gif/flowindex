@@ -106,4 +106,6 @@ export type FlowAction =
   | { type: 'ADD_PENALTY'; payload: { sectorKey: string; points: number } }
   | { type: 'SET_OP_REVIEWED' }
   | { type: 'APPLY_TIMER_BONUS'; payload: { sectorKey: string; bonus: number } }
-  | { type: 'CLEAR_SCENARIOS' };
+  | { type: 'CLEAR_SCENARIOS' }
+  | { type: 'SAVE_BEFORE_REF'; payload: { sectorKey: string; dataUrl: string } }
+  | { type: 'SAVE_AFTER_REF'; payload: { sectorKey: string; dataUrl: string } };

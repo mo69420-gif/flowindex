@@ -55,7 +55,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const reqBody = await req.json();
-    const { mode, images, sectorName, sectorDesc, elapsedMin, timeEstimate, sectorTargets, tone } = reqBody;
+    const { mode, images, sectorName, sectorDesc, elapsedMin, timeEstimate, sectorTargets, tone, beforeRef } = reqBody;
 
     // Boot message — tone-aware
     if (mode === "boot_message") {
@@ -330,10 +330,14 @@ TIER JUDGMENT RULES:
 JSON only: {"verified":true,"tone":"reward","message":"One punchy OS line max 20 words referencing tiers."}
 Tones: reward=beat clock or great job, hostile=failed or way over, neutral=on time acceptable.`;
 
-      const content = [
-        { type: "image_url", image_url: { url: images[0].dataUrl } },
-        { type: "text", text: prompt },
-      ];
+      const content: any[] = [];
+      // Patch 10 Part B: If before reference available, send it first for comparison
+      if (beforeRef) {
+        content.push({ type: "image_url", image_url: { url: beforeRef } });
+        content.push({ type: "text", text: "[First image = BEFORE. Second image = AFTER. Compare them.]" });
+      }
+      content.push({ type: "image_url", image_url: { url: images[0].dataUrl } });
+      content.push({ type: "text", text: prompt });
 
       const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash", content, 200);
       if (!response.ok) {

@@ -163,6 +163,17 @@ export default function Scan() {
             operationName: data.operationName,
           },
         });
+
+        // Patch 10 Part A: Save first directive photo as before reference for first sector
+        if (data.sectorOrder?.length > 0 && directives.length > 0) {
+          const firstDirectiveFile = directiveFiles[directives[0].id];
+          if (firstDirectiveFile) {
+            fileToDataUrl(firstDirectiveFile).then(dataUrl => {
+              dispatch({ type: 'SAVE_BEFORE_REF', payload: { sectorKey: data.sectorOrder[0], dataUrl } });
+            }).catch(() => {});
+          }
+        }
+
         navigate('/briefing');
       }, 800);
     } catch (e: any) {

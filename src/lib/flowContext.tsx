@@ -239,6 +239,26 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         trash: Math.max(0, state.trash - points),
       };
     }
+    case 'SAVE_BEFORE_REF': {
+      const { sectorKey, dataUrl } = action.payload;
+      return {
+        ...state,
+        sectorBeforeRefs: {
+          ...state.sectorBeforeRefs,
+          [sectorKey]: { ...state.sectorBeforeRefs[sectorKey], b64: dataUrl },
+        },
+      };
+    }
+    case 'SAVE_AFTER_REF': {
+      const { sectorKey, dataUrl } = action.payload;
+      return {
+        ...state,
+        sectorBeforeRefs: {
+          ...state.sectorBeforeRefs,
+          [sectorKey]: { ...state.sectorBeforeRefs[sectorKey], mime: dataUrl },
+        },
+      };
+    }
     case 'RESET_SCENARIO': {
       // Archive first if active
       let s = state;

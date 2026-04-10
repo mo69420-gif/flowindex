@@ -30,7 +30,14 @@ export default function MainMenu() {
     ? 'ALL SECTORS CLEARED. CONFIRM REMAINING OR SUBMIT REVIEW.'
     : `Stage ${done + 1} of ${total} active. Hit SECTOR MAP.`;
 
-  const handleScanClick = () => {
+  const handleNewScenario = () => {
+    // Patch 5+6: Archive old scenario before starting new one
+    if (scanDone && sectorOrder.length > 0 && !opReviewed) {
+      dispatch({ type: 'ARCHIVE_SCENARIO' });
+    }
+    if (scanDone || opReviewed) {
+      dispatch({ type: 'RESET_SCENARIO' });
+    }
     if (!state.seenExplainer) {
       navigate('/explainer');
     } else {
@@ -47,7 +54,7 @@ export default function MainMenu() {
         <div className="flex flex-col gap-1.5">
           {/* No scan yet or op reviewed — show new scenario */}
           {(!scanDone || opReviewed) && (
-            <TerminalButton onClick={handleScanClick}>
+            <TerminalButton onClick={handleNewScenario}>
               {'>'} {opReviewed ? 'NEW SCENARIO' : 'SCAN ROOM — START HERE'}
             </TerminalButton>
           )}
@@ -70,7 +77,7 @@ export default function MainMenu() {
               <TerminalButton onClick={() => navigate('/sectors')}>
                 {'>'} SECTOR MAP [ALL CLEAR]
               </TerminalButton>
-              <TerminalButton onClick={handleScanClick}>
+              <TerminalButton onClick={handleNewScenario}>
                 {'>'} RESCAN ROOM
               </TerminalButton>
             </>

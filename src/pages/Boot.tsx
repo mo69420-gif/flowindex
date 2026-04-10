@@ -44,6 +44,14 @@ export default function Boot() {
 
   const allUsers = state.allUsers;
 
+  // Patch 1+2: Single operator auto-login — skip select screen
+  useEffect(() => {
+    if (!showNewUser && allUsers.length === 1 && !state.username) {
+      dispatch({ type: 'SET_USERNAME', payload: allUsers[0] });
+      navigate('/menu');
+    }
+  }, [allUsers, showNewUser]);
+
   // New user form
   if (showNewUser || (allUsers.length === 0)) {
     return (

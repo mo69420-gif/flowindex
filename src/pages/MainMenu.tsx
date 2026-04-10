@@ -4,7 +4,7 @@ import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
 export default function MainMenu() {
-  const { state } = useFlow();
+  const { state, dispatch } = useFlow();
   const navigate = useNavigate();
 
   if (!state.username) {

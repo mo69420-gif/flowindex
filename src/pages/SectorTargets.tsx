@@ -89,6 +89,9 @@ export default function SectorTargets() {
           action: state.targetActions[t.id] || 'unknown',
         }));
 
+      // Patch 10 Part B: Pass before reference to tier-aware AI
+      const beforeRef = state.sectorBeforeRefs[key];
+
       const { data, error } = await supabase.functions.invoke('analyze-room', {
         body: {
           mode: 'verify',
@@ -98,6 +101,7 @@ export default function SectorTargets() {
           elapsedMin: elapsed,
           timeEstimate: sector.timeEstimate,
           sectorTargets: clearedTargets,
+          beforeRef: beforeRef?.b64 || null,
         },
       });
       if (error) throw error;
@@ -119,6 +123,10 @@ export default function SectorTargets() {
     if (elapsed !== null && timerBonus === undefined) {
       const bonus = elapsed <= sector.timeEstimate ? TIMER_BEAT_BONUS : -TIMER_MISS_PENALTY;
       dispatch({ type: 'APPLY_TIMER_BONUS', payload: { sectorKey: key, bonus } });
+    }
+    // Patch 10 Part C: Save confirmation photo as after reference
+    if (verifyPhoto) {
+      dispatch({ type: 'SAVE_AFTER_REF', payload: { sectorKey: key, dataUrl: verifyPhoto } });
     }
     dispatch({ type: 'CONFIRM_SECTOR', payload: key });
     navigate('/sectors');

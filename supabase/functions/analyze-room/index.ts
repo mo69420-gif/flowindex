@@ -284,6 +284,108 @@ Respond ONLY with valid JSON no markdown:
       return new Response(JSON.stringify({ sectors, sectorOrder, operationName }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Video scan mode — same as full_scan but frames come from video extraction
+    if (mode === "video_scan") {
+      // Validate first frame is a real room
+      const validation = await validateRoomPhoto(LOVABLE_API_KEY, images[0].dataUrl);
+      if (!validation.valid) {
+        return new Response(JSON.stringify({ error: `That doesn't look like a room. ${validation.reason} Record an actual video of your space.` }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const frameContext = images.map((img: any, i: number) => `  Frame ${i + 1}/${images.length} [${img.label}]`).join("\n");
+
+      const prompt = `You are the tactical AI core of FlowIndex OS — hostile military terminal personality. Dry humor. Brutally honest. Absurdist military comedy energy. NOT robotic — you have CHARACTER.
+
+${images.length} chronological video frames from a room walkthrough. Cross-reference ALL frames for complete spatial coverage.
+${frameContext}
+
+CRITICAL RULES FOR TARGETS:
+- DO NOT include wall art, posters, stickers, paintings, or decorative items as targets UNLESS physically blocking movement
+- Focus ONLY on functional clutter: items on surfaces, floors, furniture, storage
+- Cables, clothes, bottles, bags, boxes, tools, electronics = YES
+- Art on walls, decorative signs, tapestries = NO unless blocking a door/path
+
+SECTOR NICKNAMES must be absurdist, specific, darkly funny — not generic.
+
+For EACH sector return:
+INVENTORY — every functional visible item, numbered, with category.
+Categories: CLEANING_SUPPLIES, PERSONAL_CARE, ELECTRONICS, FURNITURE_STORAGE, TEXTILES, FOOD_DRINK, TOOLS, DECOR, MISC
+
+IMPACT SCORES 1-5: flow_impact, psych_impact, ergonomic_risk
+WHY_IT_MATTERS: 2-3 sentences with PERSONALITY.
+FINAL_ANALYSIS: 2-3 hostile motivating sentences.
+TARGETS: 2-5 FUNCTIONAL items. Each with tier (1=critical, 2=sort, 3=low), why, label, effort 5-25, value 0-15.
+ATTACK_SUGGESTION: 2-3 sentence tactical recommendation.
+
+Sector COUNT min 3 max 7. ORDER flow-first.
+Also generate ONE unique operation name: OPERATION: [2-4 WORDS ALL CAPS]
+
+Respond ONLY with valid JSON no markdown:
+{"operation_name":"OPERATION: NAME","sectors":[{"nickname":"NAME","desc":"Sentence.","time_estimate_minutes":10,"flow_impact":4,"psych_impact":5,"ergonomic_risk":3,"why_it_matters":"...","final_analysis":"...","attack_suggestion":"...","inventory":[{"number":"001","label":"Item","category":"CATEGORY"}],"targets":[{"label":"Item","tier":1,"why":"...","effort":10,"value":5}]}]}`;
+
+      const contentParts: any[] = images.map((img: any) => ({ type: "image_url", image_url: { url: img.dataUrl } }));
+      contentParts.push({ type: "text", text: prompt });
+
+      const response = await callAI(LOVABLE_API_KEY, "google/gemini-2.5-flash", contentParts, 3000);
+      if (!response.ok) {
+        const t = await response.text();
+        console.error("AI gateway error:", response.status, t);
+        if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Try again in a moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (response.status === 402) return new Response(JSON.stringify({ error: "Credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        throw new Error(`AI gateway error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content || "";
+      const parsed = parseAiJson(text);
+      const sectorsRaw = (parsed.sectors || []).slice(0, 7);
+      if (sectorsRaw.length < 2) {
+        return new Response(JSON.stringify({ error: `Only ${sectorsRaw.length} sector(s) found. Try a longer/clearer video.` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const sectors: Record<string, any> = {};
+      const sectorOrder: string[] = [];
+
+      for (let idx = 0; idx < sectorsRaw.length; idx++) {
+        const s = sectorsRaw[idx];
+        const key = SECTOR_POOL[idx];
+        const nickname = String(s.nickname || `ZONE ${idx + 1}`).toUpperCase().trim();
+        const targets = (s.targets || []).map((t: any, ti: number) => ({
+          id: `${key[0]}${ti + 1}`,
+          label: String(t.label || `Item ${ti + 1}`),
+          tier: Math.min(3, Math.max(1, Number(t.tier) || 2)),
+          why: String(t.why || "Needs attention."),
+          trash: Number(t.effort) || Number(t.purge) || Number(t.trash) || 10,
+          loot: Number(t.value) || Number(t.claim) || Number(t.loot) || 5,
+        }));
+
+        sectors[key] = {
+          name: `${key}: ${nickname}`,
+          desc: String(s.desc || "Sector awaiting assessment."),
+          stage: idx + 1,
+          timeEstimate: Math.max(1, Number(s.time_estimate_minutes) || 10),
+          flowImpact: Math.min(5, Math.max(1, Number(s.flow_impact) || 3)),
+          psychImpact: Math.min(5, Math.max(1, Number(s.psych_impact) || 3)),
+          ergonomicRisk: Math.min(5, Math.max(1, Number(s.ergonomic_risk) || 2)),
+          whyItMatters: String(s.why_it_matters || "This zone needs attention."),
+          finalAnalysis: String(s.final_analysis || "Clear it."),
+          attackSuggestion: String(s.attack_suggestion || ""),
+          inventory: (s.inventory || []).map((item: any, i: number) => ({
+            number: String(item.number || `${i + 1}`.padStart(3, "0")),
+            label: String(item.label || `Item ${i + 1}`),
+            category: String(item.category || "MISC"),
+          })),
+          targets,
+        };
+        sectorOrder.push(key);
+      }
+
+      const operationName = String(parsed.operation_name || "OPERATION: UNKNOWN").toUpperCase();
+      return new Response(JSON.stringify({ sectors, sectorOrder, operationName }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Tier-aware verification
     if (mode === "verify") {
       const name = sectorName || "UNKNOWN SECTOR";

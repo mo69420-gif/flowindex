@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFlow } from '@/lib/flowContext';
+import MissionTimerPanel from '@/components/MissionTimerPanel';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
@@ -29,7 +30,6 @@ export default function SectorDetail() {
     return null;
   }
 
-  // Group inventory by category
   const categories: Record<string, typeof sector.inventory> = {};
   sector.inventory.forEach(item => {
     const cat = item.category || 'MISC';
@@ -46,7 +46,14 @@ export default function SectorDetail() {
 
   return (
     <TerminalLayout title={sector.name} syslog={`Reviewing ${sector.name}. ${sector.inventory.length} items catalogued.`}>
-      {/* Sector Header */}
+      <MissionTimerPanel
+        overallEstimateMin={state.sectorOrder.reduce((total, sectorKey) => total + (state.sectors[sectorKey]?.timeEstimate ?? 0), 0)}
+        overallStartedAt={state.operationStartedAt}
+        sectionEstimateMin={sector.timeEstimate}
+        sectionStartedAt={state.sectorStarted[key]}
+        sectionLabel={sector.name}
+      />
+
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
           {sector.name}
@@ -57,7 +64,6 @@ export default function SectorDetail() {
         </div>
       </div>
 
-      {/* Inventory */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
           INVENTORY — {sector.inventory.length} ITEMS
@@ -78,7 +84,6 @@ export default function SectorDetail() {
         </div>
       </div>
 
-      {/* Impact Assessment */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-3">
           IMPACT ASSESSMENT

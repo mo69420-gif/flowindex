@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useFlow, sectorCleared, getCurrentStage } from '@/lib/flowContext';
+import { formatClock, getElapsedSeconds, useMissionClock } from '@/hooks/useMissionClock';
+import MissionTimerPanel from '@/components/MissionTimerPanel';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
@@ -17,9 +19,31 @@ export default function SectorMap() {
   const doneCount = sectorOrder.filter(k => sectorCleared(state, k)).length;
   const allConfirmed = sectorOrder.length > 0 && sectorOrder.every(k => state.confirmedSectors.includes(k));
   const allCleared = sectorOrder.length > 0 && sectorOrder.every(k => sectorCleared(state, k));
+  const overallEstimate = sectorOrder.reduce((total, key) => total + (sectors[key]?.timeEstimate ?? 0), 0);
+  const currentSector = currentKey ? sectors[currentKey] : null;
+  const currentStartedAt = currentKey ? state.sectorStarted[currentKey] : null;
+  const clockNow = useMissionClock(Boolean(state.operationStartedAt || currentStartedAt));
+
+  const currentSectorBadge = (() => {
+    if (!currentKey || !currentSector) return null;
+    if (!currentStartedAt) return `READY ${currentSector.timeEstimate}m`;
+
+    const remainingSeconds = (currentSector.timeEstimate * 60) - getElapsedSeconds(currentStartedAt, clockNow);
+    return remainingSeconds < 0
+      ? `+${formatClock(Math.abs(remainingSeconds))}`
+      : formatClock(remainingSeconds);
+  })();
 
   return (
     <TerminalLayout title="SECTOR MAP" syslog={allCleared && !allConfirmed ? 'All sectors cleared. Confirm remaining sectors.' : `${doneCount}/${sectorOrder.length} sectors cleared.`}>
+      <MissionTimerPanel
+        overallEstimateMin={overallEstimate}
+        overallStartedAt={state.operationStartedAt}
+        sectionEstimateMin={currentSector?.timeEstimate ?? 1}
+        sectionStartedAt={currentStartedAt}
+        sectionLabel={currentSector?.name}
+      />
+
       <div className="border border-border bg-muted p-3 mb-3.5">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
           {state.operationName}
@@ -48,7 +72,6 @@ export default function SectorMap() {
               );
             }
             if (cleared && !confirmed) {
-              // Cleared but not confirmed — needs photo
               return (
                 <TerminalButton key={key} onClick={() => navigate(`/sector/${key}/targets`)}>
                   {'>'} S{idx + 1}: {s.name}
@@ -72,7 +95,7 @@ export default function SectorMap() {
               <TerminalButton key={key} onClick={() => navigate(`/sector/${key}`)}>
                 {'>'} S{idx + 1}: {s.name}
                 <span className="float-right text-[10px] border border-primary text-primary px-1.5 py-0.5">
-                  ACTIVE ~{s.timeEstimate}min
+                  {isCurrent ? currentSectorBadge : `${s.timeEstimate}m`}
                 </span>
               </TerminalButton>
             );
@@ -80,7 +103,6 @@ export default function SectorMap() {
         </div>
       </div>
 
-      {/* Final review button when all cleared */}
       {allCleared && allConfirmed && (
         <TerminalButton variant="deploy" onClick={() => navigate('/review')}>
           {'>'} ALL SECTORS CLEAR — SUBMIT FINAL REVIEW

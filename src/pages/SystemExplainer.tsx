@@ -23,7 +23,6 @@ export default function SystemExplainer() {
         </div>
       </div>
 
-      {/* Point System */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
           THE POINT SYSTEM
@@ -40,38 +39,45 @@ export default function SystemExplainer() {
         </div>
       </div>
 
-      {/* Timer */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
           THE TIMER
         </div>
-        <div className="text-muted-foreground text-xs font-body leading-relaxed">
-          Beat the sector time estimate = +10 PURGED bonus points.{'\n'}
-          Miss the estimate = -5 PURGED penalty.{'\n'}
-          The OS is watching the clock.
+        <div className="text-muted-foreground text-xs font-body leading-relaxed whitespace-pre-wrap">
+          You get two live clocks: overall mission time and the active sector time.{"
+"}
+          Beat a sector estimate = +10 PURGED bonus points.{"
+"}
+          Miss it = -5 PURGED penalty. The OS is watching both.
         </div>
       </div>
 
-      {/* The Flow */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
           THE FLOW
         </div>
-        <div className="text-muted-foreground text-xs font-body leading-relaxed">
-          Scan your room → OS generates sectors → clear each sector → confirm with photo → final review.{'\n\n'}
-          Each sector has a timer. Beat the estimate to impress the OS.{'\n\n'}
+        <div className="text-muted-foreground text-xs font-body leading-relaxed whitespace-pre-wrap">
+          Record a guided video walkthrough → OS builds sectors → clear each sector → confirm with photo → final review.{"
+
+"}
+          The mission clock and sector clock stay visible together so you can pace yourself.{"
+
+"}
           The OS's mood is set at the end based on your final panoramic. Not the score.
         </div>
       </div>
 
-      {/* Confirmation Photos */}
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[11px] border-b border-border pb-1.5 mb-2">
           CONFIRMATION PHOTOS
         </div>
-        <div className="text-muted-foreground text-xs font-body leading-relaxed">
-          After clearing a sector, you submit a photo proving it's done.{'\n\n'}
-          The OS judges by tier. Tier 1 critical items require hard visual proof. Tier 3 low priority gets a lenient pass.{'\n\n'}
+        <div className="text-muted-foreground text-xs font-body leading-relaxed whitespace-pre-wrap">
+          After clearing a sector, you submit a photo proving it's done.{"
+
+"}
+          The OS judges by tier. Tier 1 critical items require hard visual proof. Tier 3 low priority gets a lenient pass.{"
+
+"}
           Wrong room, meme, or random photo = rejected + 5 point penalty. Submit photos of the actual sector you cleaned.
         </div>
       </div>

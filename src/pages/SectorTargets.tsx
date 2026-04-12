@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFlow, sectorCleared, TIMER_BEAT_BONUS, TIMER_MISS_PENALTY } from '@/lib/flowContext';
+import { getElapsedMinutes, useMissionClock } from '@/hooks/useMissionClock';
 import { supabase } from '@/integrations/supabase/client';
+import MissionTimerPanel from '@/components/MissionTimerPanel';
 import TerminalLayout from '@/components/TerminalLayout';
 import { TerminalButton } from '@/components/TerminalButton';
 
@@ -22,7 +24,8 @@ export default function SectorTargets() {
   const doneCount = sector ? sector.targets.filter(t => state.completedTargets.includes(t.id)).length : 0;
   const penalties = key ? (state.sectorPenalties[key] || 0) : 0;
   const started = key ? state.sectorStarted[key] : undefined;
-  const elapsed = started ? Math.floor((Date.now() - new Date(started).getTime()) / 60000) : null;
+  const clockNow = useMissionClock(Boolean(state.operationStartedAt || started));
+  const elapsed = started ? getElapsedMinutes(started, clockNow) : null;
   const timerBonus = key ? state.timerBonuses[key] : undefined;
 
   // Load attack suggestion
@@ -157,6 +160,14 @@ export default function SectorTargets() {
 
   return (
     <TerminalLayout title={`TARGETS — ${sector.name}`} syslog={`${doneCount}/${sector.targets.length} targets processed.`}>
+      <MissionTimerPanel
+        overallEstimateMin={state.sectorOrder.reduce((total, sectorKey) => total + (state.sectors[sectorKey]?.timeEstimate ?? 0), 0)}
+        overallStartedAt={state.operationStartedAt}
+        sectionEstimateMin={sector.timeEstimate}
+        sectionStartedAt={started}
+        sectionLabel={sector.name}
+      />
+
       <div className="border border-border bg-muted p-3 mb-3">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
           {sector.name} — TARGETS

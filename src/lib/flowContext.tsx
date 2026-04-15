@@ -26,7 +26,6 @@ const initialState: FlowState = {
   scenarioHistory: [],
   loadingLines: [],
   seenExplainer: false,
-  operationStartedAt: null,
   sectorPenalties: {},
   opReviewed: false,
   timerBonuses: {},
@@ -47,7 +46,6 @@ function freshScenario(): Partial<FlowState> {
     operationName: "",
     directives: [],
     sectorStarted: {},
-    operationStartedAt: null,
     sectorPenalties: {},
     opReviewed: false,
     timerBonuses: {},
@@ -92,14 +90,6 @@ export function validateState(state: FlowState): FlowState {
       if (orderSet.has(k)) cleaned[k] = v;
     }
     s.sectorStarted = cleaned;
-  }
-
-  if (s.operationStartedAt && Number.isNaN(new Date(s.operationStartedAt).getTime())) {
-    s.operationStartedAt = null;
-  }
-
-  if (!s.scanDone && s.sectorOrder.length === 0) {
-    s.operationStartedAt = null;
   }
 
   // Ensure leaderboard exists
@@ -199,7 +189,6 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
         sectors: action.payload.sectors,
         sectorOrder: action.payload.sectorOrder,
         operationName: action.payload.operationName,
-        operationStartedAt: null,
         scanDone: true,
         scenarios: state.scenarios + 1,
         sysMood: "HOSTILE BUT HELPFUL",
@@ -227,14 +216,7 @@ function flowReducer(state: FlowState, action: FlowAction): FlowState {
     case 'CONFIRM_SECTOR':
       return { ...state, confirmedSectors: [...state.confirmedSectors, action.payload] };
     case 'START_SECTOR':
-      return {
-        ...state,
-        operationStartedAt: state.operationStartedAt ?? new Date().toISOString(),
-        sectorStarted: {
-          ...state.sectorStarted,
-          [action.payload]: state.sectorStarted[action.payload] ?? new Date().toISOString(),
-        },
-      };
+      return { ...state, sectorStarted: { ...state.sectorStarted, [action.payload]: new Date().toISOString() } };
     case 'SET_MOOD':
       return { ...state, sysMood: action.payload };
     case 'SET_SEEN_EXPLAINER':

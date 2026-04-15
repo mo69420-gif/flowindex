@@ -76,7 +76,6 @@ export interface FlowState {
   scenarioHistory: ScenarioRecord[];
   loadingLines: string[];
   seenExplainer: boolean;
-  operationStartedAt: string | null;
   sectorPenalties: Record<string, number>;
   // v4.6 fields
   opReviewed: boolean;

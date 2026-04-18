@@ -21,7 +21,7 @@ export default function MainMenu() {
   const opActive = scanDone && !allClear && !opReviewed;
 
   const log = !scanDone
-    ? "No active operation. Start a new scan."
+    ? "Scan your room. That's the only way this starts."
     : opReviewed
     ? 'Operation reviewed and archived. Start a new scenario or view history.'
     : allConfirmed
@@ -31,6 +31,7 @@ export default function MainMenu() {
     : `Stage ${done + 1} of ${total} active. Hit SECTOR MAP.`;
 
   const handleNewScenario = () => {
+    // Patch 5+6: Archive old scenario before starting new one
     if (scanDone && sectorOrder.length > 0 && !opReviewed) {
       dispatch({ type: 'ARCHIVE_SCENARIO' });
     }
@@ -44,46 +45,24 @@ export default function MainMenu() {
     }
   };
 
-  const scenarioCount = (state.scenarioHistory || []).length;
-  const lb = state.leaderboard;
-
   return (
     <TerminalLayout title="ROOT" syslog={log}>
-      {/* Operator Status Block */}
-      <div className="border border-border bg-muted p-3 mb-3">
-        <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-2">
-          OPERATOR // {state.username}
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-[10px] tracking-wider text-muted-foreground mb-1">
-          <div>OPS: <span className="text-primary">{scenarioCount}</span></div>
-          <div>PURGED: <span className="text-primary">{lb?.purged || 0}</span></div>
-          <div>CLAIMED: <span className="text-primary">{lb?.claimed || 0}</span></div>
-        </div>
-        {scanDone && !opReviewed && (
-          <div className="text-accent text-[10px] tracking-widest mt-1">
-            ACTIVE OP: {state.operationName || 'UNNAMED'}
-          </div>
-        )}
-      </div>
-
-      {/* Menu Actions */}
       <div className="border border-border bg-muted p-3">
         <div className="text-primary tracking-widest text-[13px] border-b border-border pb-1.5 mb-3">
-          MAIN MENU
+          MAIN MENU // {state.username}
         </div>
         <div className="flex flex-col gap-1.5">
-
-          {/* Primary action — always visible, context-aware */}
+          {/* No scan yet or op reviewed — show new scenario */}
           {(!scanDone || opReviewed) && (
-            <TerminalButton variant="scan" onClick={handleNewScenario}>
-              {'>'} {opReviewed ? 'NEW SCENARIO — SCAN ROOM' : 'SCAN ROOM — START HERE'}
+            <TerminalButton onClick={handleNewScenario}>
+              {'>'} {opReviewed ? 'NEW SCENARIO' : 'SCAN ROOM — START HERE'}
             </TerminalButton>
           )}
 
           {/* During active op */}
           {opActive && (
-            <TerminalButton variant="confirm" onClick={() => navigate('/sectors')}>
-              {'>'} CONTINUE OP — SECTOR MAP [{done}/{total}]
+            <TerminalButton onClick={() => navigate('/sectors')}>
+              {'>'} CONTINUE OP — SECTOR MAP [STAGE {done + 1}/{total}]
             </TerminalButton>
           )}
 
@@ -104,26 +83,18 @@ export default function MainMenu() {
             </>
           )}
 
-          {/* Locked sector map */}
+          {/* Sector map disabled before first scan */}
           {!scanDone && !opReviewed && (
             <TerminalButton variant="locked" disabled>
               {'>'} SECTOR MAP — SCAN FIRST
             </TerminalButton>
           )}
 
-          <div className="border-t border-border my-1" />
-
           <TerminalButton onClick={() => navigate('/scenarios')}>
-            {'>'} SCENARIOS [{scenarioCount}]
+            {'>'} SCENARIOS
           </TerminalButton>
           <TerminalButton onClick={() => navigate('/options')}>
             {'>'} OPTIONS
-          </TerminalButton>
-          <TerminalButton variant="back" onClick={() => {
-            dispatch({ type: 'SET_USERNAME', payload: '' as any });
-            navigate('/');
-          }}>
-            {'<'} SWITCH OPERATOR
           </TerminalButton>
         </div>
       </div>
